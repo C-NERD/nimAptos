@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "packages": {
+    "jsony": {
+      "version": "1.1.5",
+      "vcsRevision": "ea811bec7fa50f5abd3088ba94cda74285e93f18",
+      "url": "https://github.com/treeform/jsony",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "6aeb83e7481ca8686396a568096054bc668294df"
+      }
+    },
+    "libsodium": {
+      "version": "0.7.1",
+      "vcsRevision": "f5490ee194d5a0bbc5fa3d4d0b6e58c617d49790",
+      "url": "https://github.com/FedericoCeratto/nim-libsodium",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "b11cd69323f1c8929c53ff97793940f0c72f78d5"
+      }
+    },
+    "sha3": {
+      "version": "0.7",
+      "vcsRevision": "7e1a5194668371c8fd4024054ac4d8c7431eddba",
+      "url": "https://github.com/narimiran/sha3",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "3ae61cb8e0a817323171b56634f9a29fc2c5febf"
+      }
+    },
+    "nimcrypto": {
+      "version": "0.5.4",
+      "vcsRevision": "4014ef939b51e02053c2e16dd3481d47bc9267dd",
+      "url": "https://github.com/cheatfate/nimcrypto",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "6e0f5178a608ecf7bb046fd0179bf78662fcff16"
+      }
+    },
+    "bcs": {
+      "version": "0.1.0",
+      "vcsRevision": "14f5793ee58fc0fb0ea4c8d1a050a615a9961c4d",
+      "url": "",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+      }
+    }
+  },
+  "tasks": {}
+}
