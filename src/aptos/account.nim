@@ -15,19 +15,22 @@ import std / [asyncdispatch]
 from std / re import match, re
 from std / times import epochTime
 from std / strformat import fmt
-from std / strutils import toHex, toLowerAscii, parseInt
+from std / strutils import toLowerAscii, parseInt, isEmptyOrWhitespace
 from std / json import JsonNode, newJString
 #from std / sequtils import concat
 from std / bitops import rotateLeftBits, bitor
 
 ## nimble imports
-import sha3
-from pkg / nimcrypto / utils import toHex, fromHex
+import pkg / [sha3]
+import pkg / nimcrypto / utils as cryptoutils
+#from pkg / nimcrypto / utils import toHex, fromHex
 from pkg / jsony import toJson, fromJson
 
 ## project imports
 import ed25519 / ed25519
-import datatype, api/nodehttp, aptosbcs
+import api / [utils, aptosclient, nodetypes]
+import datatype / [signature, transaction, move]
+import bcs
 
 type
 
@@ -35,20 +38,17 @@ type
 
     AccountCreationError* = object of CatchableError
 
-    AptosAccount = object
-
-        address*, seed*, publicKey, privateKey : string
-        resource : AccountResource
-
-    MultiSigAccount = object
+    AptosAccount = ref object of RootObj
 
         address* : string
+
+    RefAptosAccount* = ref object of AptosAccount
+
+        seed*, publicKey, privateKey : string
+
+    RefMultiSigAccount* = ref object of AptosAccount
+
         accounts* : seq[RefAptosAccount]
-        resource : MultiSigAccountResource
-
-    RefAptosAccount* = ref AptosAccount
-
-    RefMultiSigAccount* = ref MultiSigAccount
 
 const
     singleEd25519 : byte = 0
@@ -65,16 +65,19 @@ proc getPublicKey*(account : RefAptosAccount) : string = "0x" & account.publicKe
 
 proc getPrivateKey*(account : RefAptosAccount) : string = "0x" & account.privateKey
 
-proc incrementSeqNum*[T : RefAptosAccount | RefMultiSigAccount](account : T) =
+template getResource() =
+    ## makes variable resource available
 
-    when T is RefAptosAccount:
+    when account is RefAptosAccount:
 
-        account.resource.sequence_number = $(parseInt(account.resource.sequence_number) + 1)
+        let resource {.inject.} = await client.getAccount(account.address)
 
-    elif T is RefMultiSigAccount:
-        
-        account.resource.last_executed_sequence_number = account.resource.next_sequence_number
-        account.resource.next_sequence_number = $(parseInt(account.resource.next_sequence_number) + 1)
+    elif account is RefMultiSigAccount:
+
+        let protoResource = await client.getAccountResource(account.address, MultiSigAccountResourceType)
+        assert protoResource.`type` == MultiSigAccountResourceType, "Invalid resource type" ## forgot why this is here
+
+        let resource {.inject.} = protoResource.multi_acct_data
 
 template signTransaction() =
     
@@ -107,24 +110,19 @@ template multiSignTransaction() =
         rawBitMap = bitor(rawBitMap, int(rotateLeftBits(1'u, shift)))
 
     let bitMap = cast[array[4, byte]](rawBitMap) ## 4 bytes endian bit map
-    result.signature = datatype.Signature(
+
+    getResource()
+    let threshold = parseInt(resource.num_signatures_required)
+
+    result.signature = Signature(
         `type` : MultiSignature,
         public_keys : publicKeys,
         signatures : signatures,
-        bitmap : "0x" & utils.toHex(bitMap, true),
-        threshold : parseInt(account.resource.num_signatures_required)
+        bitmap : "0x" & toHex(bitMap, true),
+        threshold : threshold
     )
 
-template multiAgentSignTransaction() =
-
-    result.signature = datatype.Signature(
-        `type` : MultiAgentSignature,
-        secondary_signer_addresses : signerAddresses,
-        sender : senderSignature,
-        secondary_signers : secondarySigners
-    )
-
-proc signTransaction*(account : RefAptosAccount, client : RefAptosClient, transaction : RawTransaction, encodedTxn : string = "") : Future[SignTransaction] {.async.} =
+proc signTransaction*(account : RefAptosAccount, client : AptosClient, transaction : RawTransaction, encodedTxn : string = "") : Future[SignTransaction] {.async.} =
     ## signs transaction by encoding transaction to bcs on the node
     ## then signing it locally
 
@@ -138,10 +136,10 @@ proc signTransaction*(account : RefAptosAccount, client : RefAptosClient, transa
 
         submission = encodedTxn
 
-    #echo submission, "\n"
+    echo submission, "\n"
     signTransaction()
 
-proc multiSignTransaction*(account : RefMultiSigAccount, client : RefAptosClient, transaction : RawTransaction, encodedTxn : string = "") : Future[SignTransaction] {.async.} =
+proc multiSignTransaction*(account : RefMultiSigAccount, client : AptosClient, transaction : RawTransaction, encodedTxn : string = "") : Future[SignTransaction] {.async.} =
      
     result = transaction
     var submission : string
@@ -166,33 +164,37 @@ proc multiAgentSignTransaction*(sender_sig : Signature, secondary_signers : seq[
     
     new(senderSignature)
     senderSignature[] = sender_sig
+    result.signature = Signature(
+        `type` : MultiAgentSignature,
+        secondary_signer_addresses : signerAddresses,
+        sender : senderSignature,
+        secondary_signers : secondarySigners
+    )
 
-    #let submission = await client.encodeSubmission(transaction)
-    multiAgentSignTransaction()
-
-proc signTransaction*(account : RefAptosAccount, transaction : RawTransaction) : SignTransaction =
+proc signTransaction*(account : RefAptosAccount, transaction : RawTransaction, encodedTxn : string = "") : SignTransaction =
     ## signs transaction by encoding transaction to bcs locally
     ## then signing it locally
 
     result = transaction
-    
-    let submission : string = block:
+    var submission : string
+    if encodedTxn.isEmptyOrWhitespace():
 
         var ctx: SHA3
         let bcsTxn = "APTOS::RawTransaction"
         sha3_init(ctx, SHA3_256)
         sha3_update(ctx, bcsTxn, len(bcsTxn))
-        
-        let 
-            preHash = sha3_final(ctx)
-            submission = utils.toHex(preHash, true) & toLowerAscii(encodeTransaction(transaction))
 
-        submission
+        let preHash = sha3_final(ctx)
+        submission = toHex(preHash, true) & toLowerAscii(serialize(transaction))
+
+    else:
+
+        submission = encodedTxn
     
-    #echo submission, "\n"
+    echo submission, "\n"
     signTransaction()
 
-proc buildTransaction*[T : RefAptosAccount | RefMultiSigAccount](client : RefAptosClient, account : T, max_gas_amount, gas_price, txn_duration : int64 = -1) : RawTransaction =
+proc buildTransaction*[T : RefAptosAccount | RefMultiSigAccount](account : T, client : AptosClient, max_gas_amount, gas_price, txn_duration : int64 = -1) : Future[RawTransaction] {.async.} =
     ## params :
     ## 
     ## account          -> account to build transaction for
@@ -205,10 +207,11 @@ proc buildTransaction*[T : RefAptosAccount | RefMultiSigAccount](client : RefApt
     if duration < 0:
 
         duration = 18000 ## set to 5 hours
-
+    
+    getResource()
     when T is RefAptosAccount:
-
-        sequenceNumber = account.resource.sequence_number
+        
+        sequenceNumber = resource.sequence_number
 
     elif T is RefMultiSigAccount:
 
@@ -238,13 +241,13 @@ proc getAddressFromKey*(pubkey : string) : string =
 
         raise newException(InvalidSeed, fmt"public key {pubkey} is invalid")
 
-    let publicKey = utils.fromHex(pubkey)
+    let publicKey = fromHex(pubkey)
     var ctx : SHA3
     sha3_init(ctx, SHA3_256)
     sha3_update(ctx, publicKey, len(publicKey))
     sha3_update(ctx, singleEd25519, 1)
 
-    return "0x" & utils.toHex(sha3_final(ctx), true)
+    return "0x" & toHex(sha3_final(ctx), true)
 
 proc getAddressFromKeys*(keys : seq[string], threshold : range[1..32]) : string =
     ## gets address from public keys
@@ -264,7 +267,7 @@ proc getAddressFromKeys*(keys : seq[string], threshold : range[1..32]) : string 
     var publicKeysConcat : seq[byte]
     for key in keys:
 
-        publicKeysConcat.add utils.fromHex(key)
+        publicKeysConcat.add fromHex(key)
 
     publicKeysConcat.add byte(threshold)
 
@@ -273,9 +276,9 @@ proc getAddressFromKeys*(keys : seq[string], threshold : range[1..32]) : string 
     sha3_update(ctx, publicKeysConcat, len(publicKeysConcat))
     sha3_update(ctx, multiEd25519, 1)
 
-    return "0x" & utils.toHex(sha3_final(ctx), true)
+    return "0x" & toHex(sha3_final(ctx), true)
 
-proc accountExists*(client : RefAptosClient, address : string) : Future[bool] {.async.} =
+proc accountExists*(client : AptosClient, address : string) : Future[bool] {.async.} =
 
     let resp = await client.executeModuleView(
         ViewRequest(
@@ -287,7 +290,7 @@ proc accountExists*(client : RefAptosClient, address : string) : Future[bool] {.
     return resp.fromJson(seq[bool])[0]
 
 ## initialization procs for type RefAptosAccount and RefMultiSigAccount
-proc newAccount*(client : RefAptosClient, address, seed : string, getres : bool = true) : 
+proc newAccount*(address, seed : string) : 
     RefAptosAccount =
     ## The seed is your 32 bytes | 64 character private key
     
@@ -296,55 +299,30 @@ proc newAccount*(client : RefAptosClient, address, seed : string, getres : bool 
         raise newException(InvalidSeed, fmt"seed {seed} is invalid")
     
     let keypair = getKeyPair(seed)
-    result = RefAptosAccount(
+    return RefAptosAccount(
         address : address,
         publicKey : keypair.pubkey,
         privateKey : keypair.prvkey,
         seed : seed 
     ) 
 
-    if getres:
-
-        result.resource = waitFor client.getAccount(address)
-
-proc accountFromKey*(client : RefAptosClient, address, prikey : string) : RefAptosAccount =
+proc accountFromKey*(address, prikey : string) : RefAptosAccount =
 
     if not isPriKey(prikey):
 
         raise newException(InvalidSeed, fmt"private key {prikey} is invalid")
 
     let seed = getSeed(prikey)
-    return newAccount(client, address, seed)
+    return newAccount(address, seed)
 
-proc newMultiSigAccount*(client : RefAptosClient, accounts : seq[RefAptosAccount], address : string, 
-    getres : bool = true) : RefMultiSigAccount =
+proc newMultiSigAccount*(accounts : seq[RefAptosAccount], address : string) : RefMultiSigAccount =
 
-    result = RefMultiSigAccount(
+    return RefMultiSigAccount(
         address : address,
         accounts : accounts
     )
 
-    if getres:
-
-        let resource = waitFor client.getAccountResource(address, MultiSigAccountResourceType)
-        assert resource.`type` == MultiSigAccountResourceType, "Invalid resource type"
-
-        result.resource = resource.multi_acct_data
-
-proc refreashAccount*[T : RefAptosAccount | RefMultiSigAccount](client : RefAptosClient, account : T) =
-    
-    when T is RefAptosAccount:
-
-        account.resource = waitFor client.getAccount(address)
-
-    elif T is RefMultiSigAccount:
-
-        let resource = waitFor client.getAccountResource(address, MultiSigAccountResourceType)
-        assert resource.`type` == MultiSigAccountResourceType, "Invalid resource type"
-
-        account.resource = resource.multi_acct_data
-
-proc createWallet*(client : RefAptosClient) : RefAptosAccount =
+proc createWallet*(client : AptosClient) : Future[RefAptosAccount] {.async.} =
     ## This proc only creates a new random keypair and seed hash
     ## and it initializes a new RefAptosAccount object
     ## it does not how ever register the new wallet with the
@@ -362,13 +340,13 @@ proc createWallet*(client : RefAptosClient) : RefAptosAccount =
         let keyPair = getKeyPair(seed)
         address = getAddressFromKey(keyPair.pubkey)
     
-        if not waitFor(client.accountExists(address)):
+        if not await client.accountExists(address):
 
             break
     
-    result = client.newAccount(address, seed, false)
+    result = newAccount(address, seed)
 
-proc createMultiSigWallet*(client : RefAptosClient, accounts : seq[RefAptosAccount], threshold : range[1..32]) : RefMultiSigAccount {.deprecated.} =
+#[proc createMultiSigWallet*(client : AptosClient, accounts : seq[RefAptosAccount], threshold : range[1..32]) : RefMultiSigAccount {.deprecated.} =
     ## This proc only creates a new address from the given aptos accounts
     ## and it initializes a new RefMultiSigAccount object.
     ## It does not how ever register the new wallet with the
@@ -388,5 +366,5 @@ proc createMultiSigWallet*(client : RefAptosClient, accounts : seq[RefAptosAccou
 
         raise newException(AccountCreationError, fmt"account at address {address} already exists")
  
-    result = client.newMultiSigAccount(accounts, address, false)
+    result = client.newMultiSigAccount(accounts, address)]#
 
