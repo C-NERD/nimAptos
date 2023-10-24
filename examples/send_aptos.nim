@@ -1,36 +1,33 @@
-import std / [asyncdispatch]
+{.define : debug.}
+
+import std / [asyncdispatch, logging]
 from std / os import getEnv
+from std / strformat import fmt
 import aptos
+
+let logger = newConsoleLogger(fmtStr = "[$levelname] -> ")
+addHandler(logger)
 
 let 
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
     account1 = newAccount(
-        client, 
-        getEnv("APTOS_ADDRESS"),
-        getEnv("APTOS_SEED")
+        getEnv("APTOS_ADDRESS1"),
+        getEnv("APTOS_SEED1")
     )
     account2 = newAccount(
-        client, 
         getEnv("APTOS_ADDRESS2"),
         getEnv("APTOS_SEED2")
-    )
-    multiSigAccount = newMultiSigAccount(
-        client,
-        @[account1, account2],
-        getEnv("APTOS_MULTI_SIG_ADDRESS")
-    )
+    ) 
 
-#[let balance = waitFor client.accountBalanceApt(account1)
+let balance = waitFor client.accountBalanceApt(account1)
 if balance >= 0.5:
     
-    echo "sending funds to recipient"
+    info fmt"sending funds from {account1.address} to {account2.address}..."
     let sendTxn = waitFor client.sendAptCoin(account1, account2.address, 0.5)
-    echo sendTxn.hash ## echo transaction]#
+    notice fmt"sent funds, txn at {sendTxn.hash}"
 
-if waitFor(client.accountBalanceApt(multiSigAccount)) > 0.2:
+else:
 
-    echo "sending funds to recipient"
-    let sendTxn = waitFor client.sendAptCoin(multiSigAccount, account2.address, 0.2)
-    echo sendTxn.hash
+    fatal fmt"wallet balance {balance} is not enough"
 
 client.close()

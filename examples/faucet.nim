@@ -1,31 +1,24 @@
-import std / [asyncdispatch]
+{.define : debug.}
+
+import std / [asyncdispatch, logging]
 from std / os import getEnv
+from std / strformat import fmt
 import aptos
 
+let logger = newConsoleLogger(fmtStr = "[$levelname] -> ")
+addHandler(logger)
+
 let 
-    client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
-    faucetClient = newAptosClient("https://faucet.devnet.aptoslabs.com", true)
-    account1 = newAccount(
-        client, 
-        getEnv("APTOS_ADDRESS"),
-        getEnv("APTOS_SEED")
-    )
-    account2 = newAccount(
-        client, 
-        getEnv("APTOS_ADDRESS2"),
-        getEnv("APTOS_SEED2")
-    )
-    multiSigAccount = newMultiSigAccount(
-        client,
-        @[account1, account2],
-        getEnv("APTOS_MULTI_SIG_ADDRESS"),
-        2
-    )
+    address1 = getEnv("APTOS_ADDRESS1")
+    address2 = getEnv("APTOS_ADDRESS2")
 
+info fmt"funding wallets {address1} and {address2} with faucet..."
+let 
+    faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com")
+    hash1 = waitFor faucetClient.faucetFund(address1, 1.toOcta())
+    hash2 = waitFor faucetClient.faucetFund(address2, 1.toOcta())
 
-echo "funding wallet from faucet"
-let fundingHashes = waitFor faucetClient.faucetFund(multiSigAccount.address, 1.toOcta()) ## get 5 aptos funded to your wallet
-echo fundingHashes
-
-client.close()
+notice fmt"txn hash for {address1} funding : {hash1}"
+notice fmt"txn hash for {address2} funding : {hash2}"
+faucetClient.close()
 

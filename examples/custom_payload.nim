@@ -17,12 +17,10 @@ let
     account2 = newAccount(
         getEnv("APTOS_ADDRESS2"),
         getEnv("APTOS_SEED2")
-    )
-    collectionName = "cnerd's collection"
+    ) 
 
-## direct transfer second token
-info "performing direct transfer of token..."
+## run mint function from smart contract
+## NOTE :: this smart contract will be made available on the mainnet. You come participate
+## in minting or any other interaction on the contract
 
-let txn = waitFor client.directTransferToken(account1, account2, account1.address, collectionName, "cloud and sea", 0, 1)
-notice fmt"direct transfer completed at {txn.hash}"
-
+client.close()
