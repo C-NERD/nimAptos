@@ -1,6 +1,6 @@
 {.define : debug.}
 
-import std / [asyncdispatch, logging]
+import std / [asyncdispatch, logging, json]
 from std / os import getEnv
 from std / strformat import fmt
 import aptos
@@ -23,6 +23,12 @@ let
 ## direct transfer second token
 info "performing direct transfer of token..."
 
-let txn = waitFor client.directTransferToken(account1, account2, account1.address, collectionName, "cloud and sea", 0, 1)
-notice fmt"direct transfer completed at {txn.hash}"
+let 
+    acctTxn = waitFor directTransferToken(account1, account2, client, account1.address, collectionName, "cloud and sea", 0, 0.3)
+    txn = waitFor client.getTransactionByHash(acctTxn.hash)
+
+assert getBool(getOrDefault(txn, "success")), getStr(getOrDefault(txn, "vm_status"))
+notice fmt"direct transfer completed at {acctTxn.hash}"
+
+client.close()
 

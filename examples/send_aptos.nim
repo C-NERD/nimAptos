@@ -1,4 +1,5 @@
 {.define : debug.}
+#{.define : nodeSignature.}
 
 import std / [asyncdispatch, logging]
 from std / os import getEnv
@@ -19,11 +20,11 @@ let
         getEnv("APTOS_SEED2")
     ) 
 
-let balance = waitFor client.accountBalanceApt(account1)
-if balance >= 0.5:
+let balance = waitFor account1.accountBalanceApt(client)
+if balance >= 0.2:
     
     info fmt"sending funds from {account1.address} to {account2.address}..."
-    let sendTxn = waitFor client.sendAptCoin(account1, account2.address, 0.5)
+    let sendTxn = waitFor sendAptCoin(account1, client, account2.address, 0.2)
     notice fmt"sent funds, txn at {sendTxn.hash}"
 
 else:
