@@ -1,8 +1,10 @@
-from std / uri import parseUri, Uri
+from std / uri import parseUri, Uri, `/`, encodeQuery
 from nodetypes import LedgerInfo
 from std / strutils import split, parseInt
 
-export split, parseInt ## for tmpl callNode
+import pkg / [jsony]
+
+export split, parseInt, `/`, encodeQuery 
 
 when defined(debug):
 
@@ -123,7 +125,7 @@ template callNode*(client : BaseClient, path : string, `method` : HttpMethod, pa
 
     callback
 
-proc newAptosClient*(nodeUrl : string) : AptosClient =
+proc newPrimitiveAptosClient*(nodeUrl : string) : AptosClient =
 
     new(result)
     when not defined(js):
