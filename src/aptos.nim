@@ -14,57 +14,55 @@
 
 ## std imports
 import std / [asyncdispatch, json]
-from std / strutils import parseInt
-from std / strformat import fmt
+from std / uri import parseUri, UriParseError
+from std / strutils import toLowerAscii
+
+## third party import
+import pkg / bcs
 
 ## project imports
-import aptos / [account, utils]
-import aptos / api / [aptosclient, faucetclient]
-import aptos / datatype / [move, payload, signature, change, event, transaction, writeset]
+import aptos / [account]
+import aptos / utils as aptosutils
+import aptos / api / [aptosclient, faucetclient, utils, nodetypes]
+import aptos / aptostypes / [resourcetypes, moduleid, payload, transaction, signature]
+import aptos / movetypes / [address, scriptarguments]
+#import aptos / ed25519 / ed25519
 
 ## project exports
-export account, utils, aptosclient, faucetclient, move, payload, signature, change, event, transaction, writeset
+export account, resourcetypes, moduleid, payload, transaction, address, scriptarguments, aptosclient, faucetclient, nodetypes, bcs, utils, aptosutils
 
-##
-var DEFAULT_MAX_GAS_AMOUNT* = 10000 ## change this to what you want the default max gas
-## amount to be
+var DEFAULT_MAX_GAS_AMOUNT* = 10000 ## change this to what you want the default max gas amount to be
 
 ## extension procs to node api
-template sign*(encodedTxn : string = "") =
-    ## encodes and signs transaction as single ed25519 transaction
-    ## params sync :: should nodeSignature be syncronous (true) or asyncronous (false)
-    ## requires ::
-    ## variable account : RefAptosAccount
-    ## variable client : AptosClient (only required when `nodeSignature` is defined)
-    ## variable transaction : RawTransaction
-    ## to be defined 
-    #when defined(nodeSignature):
-    ## encode transaction on the node
-    signedTransaction = signTransaction(account, transaction, encodedTxn)
-    signedTransaction = await signTransaction(account, client, transaction, encodedTxn)
-
-    #else:
-
-    #signedTransaction = signTransaction(account, transaction, encodedTxn)
-
-template multiSign*(encodedTxn : string = "") =
-    ## encodes and signs transaction as multi ed25519 transaction
-    ## params sync :: should nodeSignature be syncronous (true) or asyncronous (false)
-    ## requires ::
-    ## variable account : RefMultiSigAccount
-    ## variable client : AptosClient (only required when `nodeSignature` is defined)
-    ## variable transaction : RawTransaction
-    ## to be defined
+template singleSign*[T : TransactionPayload](account : RefAptosAccount, client : AptosClient, transaction : RawTransaction[T], encoding : string = "") : untyped =
+    
+    var signedTransaction : SignTransaction[T]
     when defined(nodeSignature):
-        ## encode transaction on the node
 
-        signedTransaction = await multiSignTransaction(account, client, transaction, encodedTxn)
+        ## encode transaction on the node
+        signedTransaction = await signTransaction[T](account, client, transaction, encoding)
+
+    else:
+
+        signedTransaction = signTransaction[T](account, transaction, encoding)
+
+    signedTransaction
+
+template multiSign*[T : TransactionPayload](account : RefMultiSigAccount, client : AptosClient, transaction : RawTransaction[T], encoding : string = "") : untyped =
+    
+    var signedTransaction : SignTransaction[T]
+    when defined(nodeSignature):
+
+        ## encode transaction on the node
+        signedTransaction = await multiSignTransaction[T](account, client, transaction, encoding)
 
     else:
         
-        {.fatal : "local bcs signing for multisig account not yet implemented".}
+        signedTransaction = multiSignTransaction[T](account, transaction, encoding)
 
-template validateGasFees*() {.dirty.} =
+    signedTransaction
+
+proc validateGasFees*(client : AptosClient, max_gas_amount, gas_price : int64) : Future[tuple[max_gas_amount, gas_price : int64]] {.async.} =
     ## gas_price is in octa
 
     var
@@ -80,13 +78,9 @@ template validateGasFees*() {.dirty.} =
         let gasInfo = await client.estimateGasPrice()
         gas_price = gasInfo.prioritized_gas_estimate
 
-proc accountBalanceApt*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, 
-    account : T) : Future[float] {.async.} =
+    return (max_gas_amount, gas_price)
 
-    let resource = await client.getAccountResource(account.address, AptCoinResourceType)
-    return parseInt(resource.coin_data.coin.value).toApt()
-
-template transact*(customcode : untyped) : untyped =
+template transact*[T : TransactionPayload](account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, payload : T, max_gas_amount, gas_price, txn_duration : int64) : untyped =
     ## required variables
     ## client : (AptosClient)
     ## account : account initiating transaction (RefAptosAccount | RefMultiSigAccount)
@@ -98,126 +92,24 @@ template transact*(customcode : untyped) : untyped =
     ## var transaction : RawTransaction
     ## var signedTransaction (for other tmpl called)
     ## 
-    ## sets result to SubmittedTransaction 
+    ## sets result to SignTransaction 
 
-    validateGasFees()
-    var transaction {.inject.} = await buildTransaction(account, client, max_gas_amount, gas_price, txn_duration)
+    var fees = await validateGasFees(client, max_gas_amount, gas_price)
+    var transaction = await buildTransaction[T](account, client, fees.max_gas_amount, fees.gas_price, txn_duration)
+    transaction.payload = payload
     
-    customcode
+    var signedTransaction : SignTransaction[T]
+    when account is RefAptosAccount:
 
-    var signedTransaction {.inject.} : SignTransaction
-    when T is RefAptosAccount:
+        signedTransaction = singleSign[T](account, client, transaction, "") 
 
-        sign()
+    elif account is RefMultiSigAccount:
 
-    elif T is RefMultiSigAccount:
+        signedTransaction = multiSign[T](account, client, transaction, "")
+    
+    await submitTransaction[T](client, signedTransaction)
 
-        multiSign()
-
-    result = await client.submitTransaction(signedTransaction)
-
-    #[nnkStmtList.newTree(
-        nnkIfStmt.newTree(
-            nnkElifBranch.newTree(
-                nnkPrefix.newTree(
-                    newIdentNode("not"),
-                    nnkCall.newTree(
-                        newIdentNode("isValidSeed"),
-                        newIdentNode("recipient")
-                    )
-                ),
-
-                nnkStmtList.newTree(
-                    nnkRaiseStmt.newTree(
-                        nnkCall.newTree(
-                            newIdentNode("newException"),
-                            newIdentNode("InvalidSeed"),
-                            nnkCallStrLit.newTree(
-                                newIdentNode("fmt"),
-                                newLit("recipient\'s address {recipient} is invalid")
-                            )
-                        )
-                    )
-                )
-            )
-        ),
-
-        nnkCall.newTree(newIdentNode("validateGasFees")),
-
-        nnkVarSection.newTree(
-            nnkIdentDefs.newTree(
-                newIdentNode("transaction"),
-                newEmptyNode(),
-                nnkCommand.newTree(
-                    newIdentNode("await"),
-                    nnkCall.newTree(
-                        nnkDotExpr.newTree(
-                            newIdentNode("account"),
-                            newIdentNode("buildTransaction")
-                        ),
-
-                        newIdentNode("client"),
-                        newIdentNode("max_gas_amount"),
-                        newIdentNode("gas_price"),
-                        newIdentNode("txn_duration")
-                    )
-                )
-            )
-        ),
-
-        customcode,
-
-        nnkVarSection.newTree(
-            nnkIdentDefs.newTree(
-                newIdentNode("signedTransaction"),
-                newIdentNode("SignTransaction"),
-                newEmptyNode()
-            )
-        ),
-
-        nnkWhenStmt.newTree(
-            nnkElifBranch.newTree(
-                nnkInfix.newTree(
-                    newIdentNode("is"),
-                    newIdentNode("T"),
-                    newIdentNode("RefAptosAccount")
-                ),
-
-                nnkStmtList.newTree(
-                    nnkCall.newTree(newIdentNode("sign"))
-                )
-            ),
-
-            nnkElifBranch.newTree(
-                nnkInfix.newTree(
-                    newIdentNode("is"),
-                    newIdentNode("T"),
-                    newIdentNode("RefMultiSigAccount")
-                ),
-
-                nnkStmtList.newTree(
-                    nnkCall.newTree(newIdentNode("multiSign"))
-                )
-            )
-        ),
-
-        nnkReturnStmt.newTree(
-            nnkPar.newTree(
-                nnkCommand.newTree(
-                    newIdentNode("await"),
-                    nnkCall.newTree(
-                        nnkDotExpr.newTree(
-                            newIdentNode("client"),
-                            newIdentNode("submitTransaction")
-                        ),
-                        newIdentNode("signedTransaction")
-                    )
-                )
-            )
-        )
-    )]#
-
-template multiAgentTransact*(customcode : untyped) : untyped =
+template multiAgentTransact*[T : TransactionPayload](account : RefAptosAccount | RefMultiSigAccount, single_sec_signers : seq[RefAptosAccount], multi_sec_signers : seq[RefMultiSigAccount], client : AptosClient, payload : T, max_gas_amount, gas_price, txn_duration : int64) : untyped =
     ## like transact tmpl, but for multiagent transactions
     ## required variables
     ## client : (AptosClient)
@@ -229,267 +121,219 @@ template multiAgentTransact*(customcode : untyped) : untyped =
     ## max_gas_amount : maximum gas amount permitted (int64)
     ## gas_price : gas price to be used for transaction (int64)
     ## txn_duration : duration for transaction timeout in seconds(int64)
-    ##
-    ## injects:
-    ## var transaction : RawTransaction
-    ## var signedTransaction (for other tmpl called)
-    ## let account (for sign and multisign tmpl)
-    ## 
-    ## sets result to SubmittedTransaction 
 
-    validateGasFees()
-    var transaction {.inject.} = await buildTransaction(sender, client, max_gas_amount, gas_price, txn_duration)
+    var fees = await validateGasFees(client, max_gas_amount, gas_price)
+    var transaction = await buildTransaction[T](account, client, fees.max_gas_amount, fees.gas_price, txn_duration)
+    transaction.payload = payload
     
-    customcode
+    var multiAgentTransaction = toMultiAgentRawTransaction[T](transaction)
+    for signer in single_sec_signers:
+
+        multiAgentTransaction.secondary_signers.add $signer.address
+
+    for signer in multi_sec_signers:
+
+        multiAgentTransaction.secondary_signers.add $signer.address
     
-    var multiAgentTransaction = toMultiAgentRawTransaction(transaction)
-    multiAgentTransaction.secondary_signers = signers
+    var encodedTransaction : string
     when defined(nodeSignature):
 
-        let encodedTransaction = await client.encodeSubmission(multiAgentTransaction)
-
+        encodedTransaction = await client.encodeSubmission(multiAgentTransaction)
+        
     else:
         
-        #let encodedTransaction = ""
-        {.fatal : "local transaction encoding not implemented yet".}
+        encodedTransaction = "0x" & preHashMultiAgentTxn() & toLowerAscii($serialize[T](multiAgentTransaction))
 
-    var signedTransaction {.inject.} : SignTransaction
-    when sender is RefAptosAccount:
+    var signedTransaction : SignTransaction[T]
+    when account is RefAptosAccount:
 
-        let account {.inject.} = sender
-        sign(encodedTransaction)
+        signedTransaction = singleSign[T](account, client, transaction, encodedTransaction)
 
-    elif sender is RefMultiSigAccount:
+    elif account is RefMultiSigAccount:
 
-        let account {.inject.} = sender
-        multiSign(encodedTransaction)
-
-    let senderSig = signedTransaction.signature ## set sender's signature
+        signedTransaction = multiSign[T](account, client, transaction, encodedTransaction)
+    
     var 
         signerAddresses : seq[string]
         signerSignatures : seq[Signature]
-    for signer in singleSigners:
+    for signer in single_sec_signers:
 
-        let account {.inject.} = signer
-        sign(encodedTransaction)
+        let singleSignedTxn = singleSign[T](signer, client, transaction, encodedTransaction)
 
-        signerAddresses.add account.address
-        signerSignatures.add signedTransaction.signature
+        signerAddresses.add $signer.address
+        signerSignatures.add singleSignedTxn.signature
 
     for signer in multiSigners:
 
-        let account {.inject.} = signer
-        multiSign(encodedTransaction)
+        let multiSignedTxn = multiSign[T](signer, client, transaction, encodedTransaction)
 
-        signerAddresses.add account.address
-        signerSignatures.add signedTransaction.signature
+        signerAddresses.add $signer.address
+        signerSignatures.add multiSignedTxn.signature
 
-    signedTransaction = multiAgentSignTransaction(
-        senderSig, 
+    signedTransaction = multiAgentSignTransaction[T](
+        signedTransaction.signature,
         signerSignatures,
         signerAddresses,
         transaction
     )
-    result = await client.submitTransaction(signedTransaction)
+    await submitTransaction[T](client, signedTransaction)
 
-proc sendAptCoin*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, recipient : string, 
-    amount : float, max_gas_amount, gas_price, txn_duration : int64 = -1) : Future[SubmittedTransaction] {.async.} =
+proc sendAptCoin*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, recipient : Address, 
+    amount : float, max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## param amount: amount to send in aptos
     ## txn_duration : amount of time in seconds till transaction timeout
     ## if < 0 then the library will handle it
     ## returns transaction
     
-    if not isValidSeed(recipient):
-
-        raise newException(InvalidSeed, fmt"recipient's address {recipient} is invalid")
-
-    transact:
-
-        transaction.payload = Payload(
-            `type` : EntryFunction,
-            function : "0x1::coin::transfer",
-            entry_type_arguments : @["0x1::aptos_coin::AptosCoin"],
-            entry_arguments : toPayloadArgs((recipient, $(amount.toOcta())))
-        )
-
-proc createCollection*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, name, 
-    description, uri : string, max_gas_amount, gas_price, txn_duration : int64 = -1) : Future[SubmittedTransaction] {.async.} =
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x1::coin"),
+        function : "transfer",
+        type_arguments : @["0x1::aptos_coin::AptosCoin"],
+        arguments : @[eArg recipient, eArg (uint64(amount.toOcta()))]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+    
+proc createCollection*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, name, 
+    description, uri : string, max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## returns transaction 
+    
+    discard parseUri(uri) ## will raise UriParseError if not valid uri
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x3::token"),
+        function : "create_collection_script",
+        type_arguments : @[],
+        arguments : @[eArg name, eArg description, eArg uri, eArg high(uint64), eArg @[eArg false, eArg false, eArg false]]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
-    transact:
-
-        transaction.payload = Payload(
-            `type` : EntryFunction,
-            function : "0x3::token::create_collection_script",
-            entry_type_arguments : @[],
-            entry_arguments : toPayloadArgs((name, description, uri, $high(uint64)), @[false, false, false])
-        )
-
-proc createToken*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, collection, name, 
-    description, uri : string, supply, royalty_pts_per_million : uint64, max_gas_amount, gas_price,
-    txn_duration : int64 = -1) : Future[SubmittedTransaction] {.async.} =
-    ## returns transaction
-
-    transact:
-        
-        transaction.payload = Payload(
-            `type` : EntryFunction,
-            function : "0x3::token::create_token_script",
-            entry_type_arguments : @[],
-            entry_arguments : toPayloadArgs((collection, name, description, $supply, $supply, uri, account.address, $1000000, $royalty_pts_per_million, @[false, false, false, false, false], @[], @[], @[]))
-        )
-
-proc offerToken*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, recipient, creator, 
-    collection, token : string, property_version, amount : uint64, max_gas_amount, gas_price,
-    txn_duration : int64 = -1) : Future[SubmittedTransaction] {.async.} =
+proc createToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, collection, name, 
+    description, uri : string, supply, royalty_pts_per_million : uint64, max_gas_amount = -1; gas_price = -1;
+    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## returns transaction
     
-    if not isValidSeed(recipient):
+    discard parseUri(uri)
+    let empty : seq[EntryArguments] = @[]
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x3::token"),
+        function : "create_token_script",
+        type_arguments : @[],
+        arguments : @[
+            eArg collection, eArg name, eArg description, eArg supply, eArg supply, eArg uri, eArg account.address, 
+            eArg uint64(1000000), eArg royalty_pts_per_million, eArg @[eArg false, eArg false, eArg false, eArg false, eArg false], 
+            eArg empty, eArg empty, eArg empty
+        ]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
-        raise newException(InvalidSeed, fmt"recipient's address {recipient} is invalid")
-
-    if not isValidSeed(creator):
-
-        raise newException(InvalidSeed, fmt"creator's address {creator} is invalid")
-
-    transact:
-
-        transaction.payload = Payload(
-            `type` : EntryFunction,
-            function : "0x3::token_transfers::offer_script",
-            entry_type_arguments : @[],
-            entry_arguments : toPayloadArgs((recipient, creator, collection, token, $property_version, $amount))
-        )
-
-proc claimToken*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, sender, 
-    creator, collection, token : string, property_version : uint64, max_gas_amount, gas_price,
-    txn_duration : int64 = -1) : Future[SubmittedTransaction] {.async.} =
+proc offerToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, recipient, creator : Address, 
+    collection, token : string, property_version : uint64, amount : float, max_gas_amount = -1; gas_price = -1;
+    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## returns transaction
+
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x3::token_transfers"),
+        function : "offer_script",
+        type_arguments : @[],
+        arguments : @[
+            eArg recipient, eArg creator, eArg collection, eArg token, eArg property_version, eArg uint64(amount.toOcta())
+        ]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+
+proc claimToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, sender, creator : Address,
+    collection, token : string, property_version : uint64, max_gas_amount = -1; gas_price = -1;
+    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+    ## returns transaction
+
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x3::token_transfers"),
+        function : "claim_script",
+        type_arguments : @[],
+        arguments : @[eArg sender, eArg creator, eArg collection, eArg token, eArg property_version]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+
+proc directTransferToken*(sender, recipient : RefAptosAccount | RefMultiSigAccount, client : AptosClient, 
+    creator : Address, collection, token : string, property_version : uint64, amount : float, max_gas_amount = -1; gas_price = -1;
+    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     
-    if not isValidSeed(sender):
-
-        raise newException(InvalidSeed, fmt"sender's address {sender} is invalid")
-
-    if not isValidSeed(creator):
-
-        raise newException(InvalidSeed, fmt"creator's address {creator} is invalid")
-
-    transact:
-
-        transaction.payload = Payload(
-            `type` : EntryFunction,
-            function : "0x3::token_transfers::claim_script",
-            entry_type_arguments : @[],
-            entry_arguments : toPayloadArgs((sender, creator, collection, token, $property_version))
-        )
-
-proc directTransferToken*[T, K : RefAptosAccount | RefMultiSigAccount](client : AptosClient, sender : T, recipient : K, 
-    creator, collection, token : string, property_version, amount : uint64, max_gas_amount, gas_price,
-    txn_duration : int64 = -1) : Future[SubmittedTransaction] {.async.} =
-
-    if not isValidSeed(creator):
-
-        raise newException(InvalidSeed, fmt"creator's address {creator} is invalid")
-    
-    let signers = @[recipient.address]
     var
         singleSigners : seq[RefAptosAccount]
         multiSigners : seq[RefMultiSigAccount]
-    when K is RefAptosAccount:
+    when recipient is RefAptosAccount:
 
         singleSigners = @[recipient]
 
-    elif K is RefMultiSigAccount:
+    elif recipient is RefMultiSigAccount:
 
         multiSigners = @[recipient]
 
-    multiAgentTransact:
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x3::token"),
+        function : "direct_transfer_script",
+        type_arguments : @[],
+        arguments : @[eArg creator, eArg collection, eArg token, eArg property_version, eArg uint64(amount.toOcta())]
+    )
+    result = multiAgentTransact[EntryFunctionPayload](sender, singleSigners, multiSigners, client, payload, max_gas_amount, gas_price, txn_duration)
 
-        transaction.payload = Payload(
-            `type` : EntryFunction,
-            function : "0x3::token::direct_transfer_script",
-            entry_type_arguments : @[],
-            entry_arguments : toPayloadArgs((creator, collection, token, $property_version, $amount))
-        )     
-
-proc registerAccount*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, address : string, 
-    max_gas_amount, gas_price, txn_duration : int64 = -1) : Future[SubmittedTransaction] {.async.} =
+proc registerAccount*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, new_account : RefAptosAccount,
+    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## register address for new wallet account
     ## returns transaction
-
-    if not isValidSeed(address):
-
-        raise newException(InvalidSeed, fmt"address {address} is invalid")
     
-    transact:
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x1::aptos_account"),
+        function : "create_account",
+        type_arguments : @[],
+        arguments : @[eArg new_account.address]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
-        transaction.payload = Payload(
-            `type` : EntryFunction,
-            function : "0x1::aptos_account::create_account",
-            entry_type_arguments : @[],
-            entry_arguments : toPayloadArgs(address)
-        )
-
-#[proc registerMultiSigAccount*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, owners : seq[string], threshold : int,
-    max_gas_amount, gas_price, txn_duration : int64 = -1) : Future[string] {.async.} =
+proc registerMultiSigAccount*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, owners : seq[Address], num_of_sig_req : uint64,
+    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## creates new multisig account with account as signer
     ## and owners as additional owners.
     ## make sure that account address is not repeated in owners param
     ## returns account address of new multisig account
+    ## param threshold :: this is the number of signatures required
     
-    var ownersArg = newJArray()
+    let empty : seq[EntryArguments] = @[]
+    var ownersArg : seq[EntryArguments]
     for owner in owners:
 
-        if not isValidSeed(owner):
-
-            raise newException(InvalidSeed, fmt"address {owner} is invalid")
-
-        ownersArg.add newJString(owner)
+        ownersArg.add eArg owner
     
-    validateGasFees()
-
-    let transaction = client.buildTransaction(account, max_gas_amount, gas_price, txn_duration)
-    transaction.payload = Payload(
-        `type` : EntryFunction,
-        function : "0x1::multisig_account::create_with_owners",
-        entry_type_arguments : @[],
-        entry_arguments : @[ownersArg, newJString($threshold), newJArray(), newJArray()]
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x1::multisig_account"),
+        function : "create_with_owners_then_remove_bootstrapper",
+        type_arguments : @[],
+        arguments : @[
+            eArg ownersArg, eArg num_of_sig_req, eArg empty, eArg empty
+        ]
     )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
-    var signedTransaction : SignTransaction
-    when T is RefAptosAccount:
-        
-        sign()
-
-    elif T is RefMultiSigAccount:
-
-        let multiSigAccount = account
-        multiSign()
+proc publishPackage*(account : RefAptosAccount | RefMultiSigAccount,  client : AptosClient, 
+    package_meta : openArray[byte], modules : openArray[seq[byte]], max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     
-    let submittedTransaction = await client.submitTransaction(signedTransaction)
-    account.incrementSeqNum()
+    var modulesArg : seq[EntryArguments]
+    for module in modules:
 
-    var userTransaction : Transaction
-    while true:
-        ## keep trying to get transaction info
-        
-        try:
+        modulesArg.add eArg fromBytes(module)
 
-            userTransaction = await client.getTransactionByHash(submittedTransaction.hash)
-            break
+    let payload = EntryFunctionPayload(
+        moduleid : newModuleId("0x1::code"),
+        function : "publish_package_txn",
+        type_arguments : @[],
+        arguments : @[
+            eArg fromBytes(package_meta), eArg modulesArg
+        ]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
-        except ApiError:
-
-            continue
-
-    if userTransaction.`type` != UserTransaction:
-
-        raise newException(InvalidTransaction, "Transaction is not of type UserTransaction")
-
-    return userTransaction.user_events[0].guid.account_address]#
-
-proc publishPackage*[T : RefAptosAccount | RefMultiSigAccount](client : AptosClient, account : T, 
-    package_meta : openArray[byte], modules : seq[openArray[byte]]) : Future[string] {.async.} =
+proc publishPackage*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, movepackage : string,
+    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[string] {.async.} =
 
     discard
+
 
