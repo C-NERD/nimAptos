@@ -6,7 +6,7 @@ from std / strformat import fmt
 import pkg / [bcs, jsony]
 
 import resourcetypes, writeset, moduleid
-import ../movetypes/[scriptarguments, typetag]
+import ../movetypes/[arguments, typetag]
 
 from ../errors import NotImplemented
 
@@ -22,14 +22,14 @@ type
 
         moduleid* : ModuleId
         function* : string
-        type_arguments* : seq[string] ## tuple of TypeTags ## TODO :: check if error occurs here
-        arguments* : seq[EntryArguments] ## tuple of ScriptArguments
+        type_arguments* : seq[string] ## seq of TypeTags 
+        arguments* : seq[EntryArguments] ## seq of EntryArguments
 
     ScriptPayload* = object
 
         code* : MoveScriptBytecode
-        type_arguments* : seq[string] ## tuple of TypeTags
-        arguments* : seq[ScriptArguments] ## tuple of ScriptArguments
+        type_arguments* : seq[string] ## seq of TypeTags
+        arguments* : seq[ScriptArguments] ## seq of ScriptArguments
 
     MultisigPayload* = object
 
@@ -83,7 +83,7 @@ proc serializeEntryFunction*[T : EntryFunctionPayload](payload : T) : HexString 
 
     for item in payload.arguments:
 
-        result.add scriptarguments.serialize(item)
+        result.add arguments.serialize(item)
 
 proc serializeScriptPayload*[T : ScriptPayload](payload : T) : HexString =
         
@@ -117,7 +117,7 @@ proc serializeScriptPayload*[T : ScriptPayload](payload : T) : HexString =
 
     for item in payload.arguments:
 
-        result.add scriptarguments.serialize(item)
+        result.add arguments.serialize(item)
 
 proc serializeModulePayload*(payload : ModuleBundlePayload) : HexString =
 
@@ -161,7 +161,7 @@ proc deSerializeEntryFunction*[T : EntryFunctionPayload](payload : var HexString
     let arg_len = deSerializeUleb128(payload)
     for _ in 0..<arg_len:
 
-        result.arguments.add scriptarguments.deSerialize(payload)]#
+        result.arguments.add arguments.deSerialize(payload)]#
     raise newException(NotImplemented, "Not implemented yet") ## problem in deSerializing EntryArguments cleanly
 
 proc deSerializeScriptPayload*[T : ScriptPayload](payload : var HexString) : T =

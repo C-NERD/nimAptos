@@ -13,7 +13,6 @@ import ../aptostypes/[resourcetypes, transaction, payload]
 
 export ApiError, InvalidApiResponse, AptosClient, getNodeInfo, close
 
-## TODO :: convert JsonNode to Resources, Modules and Blocks for appropriate procs
 ## Account Api Calls
 proc getAccount*(client : AptosClient, address : string, ledger_version : int64 = -1) : 
     Future[AccountData] {.async, gcsafe.} =

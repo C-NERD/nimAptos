@@ -25,11 +25,11 @@ import aptos / [account]
 import aptos / utils as aptosutils
 import aptos / api / [aptosclient, faucetclient, utils, nodetypes]
 import aptos / aptostypes / [resourcetypes, moduleid, payload, transaction, signature]
-import aptos / movetypes / [address, scriptarguments]
+import aptos / movetypes / [address, arguments]
 #import aptos / ed25519 / ed25519
 
 ## project exports
-export account, resourcetypes, moduleid, payload, transaction, address, scriptarguments, aptosclient, faucetclient, nodetypes, bcs, utils, aptosutils
+export account, resourcetypes, moduleid, payload, transaction, address, arguments, aptosclient, faucetclient, nodetypes, bcs, utils, aptosutils
 
 var DEFAULT_MAX_GAS_AMOUNT* = 10000 ## change this to what you want the default max gas amount to be
 
@@ -330,10 +330,5 @@ proc publishPackage*(account : RefAptosAccount | RefMultiSigAccount,  client : A
         ]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
-
-proc publishPackage*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, movepackage : string,
-    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[string] {.async.} =
-
-    discard
 
 
