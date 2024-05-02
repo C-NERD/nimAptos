@@ -613,9 +613,6 @@ proc dumpHook*(s : var string, v : EntryArguments) =
         if v.`type` == String or v.`type` == Addr or v.`type` == Hex or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
 
             s = toJson(base)
-            #if v.`type` == Hex:
-
-                #echo "\n\n", s, "\n\n"
 
         elif v.`type` == Vector:
             
