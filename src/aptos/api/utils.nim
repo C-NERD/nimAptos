@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## templates implementation for node clients
+
 from std / uri import parseUri, Uri, `/`, encodeQuery
 from nodetypes import LedgerInfo
 from std / strutils import split, parseInt

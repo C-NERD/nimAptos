@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+#
+## implementation for aptos payload arguments
+
 {.experimental: "codeReordering".}
 
 import std / [json]
@@ -17,7 +25,7 @@ type
 
     ArgumentsEnum* {.pure.} = enum
         
-        String, U8, U16, U32, U64, U128, U256, Addr, Bool, Vector, Hex ## find variant of vector and hex type
+        String, U8, U16, U32, U64, U128, U256, Addr, Bool, Vector, Hex ## TODO :: find variant of vector and hex type
 
     Arguments = ref object of RootObj
 

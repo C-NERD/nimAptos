@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## implementation for entryfunction payload moduleid
+
 from std / strformat import fmt
 from std / strutils import split, removePrefix, align
 import pkg / [bcs]

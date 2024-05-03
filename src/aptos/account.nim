@@ -4,7 +4,7 @@
 #      See the file "LICENSE", included in this
 #    distribution, for details about the copyright.
 ##
-## This module implements procs to work with the RefAptosAccount object
+## This module implements procs to work with the RefAptosAccount and RefMultiSigAccount object
 
 when defined(js):
 

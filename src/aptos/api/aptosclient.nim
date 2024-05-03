@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## implementation for aptos node client procs
+
 ## {.experimental : "codeReordering".}
 ## std imports
 import std / [uri, httpcore, strutils]

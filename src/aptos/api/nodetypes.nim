@@ -1,10 +1,16 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## implementation for aptos node types
+
 from std / strutils import removePrefix, removeSuffix, strip, split, parseUInt
 from std / json import JsonNode
 from std / options import isNone, Option
-#from std / jsonutils import toJson
 
 from pkg / jsony import toJson
-#import ../aptostypes/[payload, signature]
 
 type
 

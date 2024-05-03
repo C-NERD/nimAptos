@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+#
+## implementation for move lang typetags
+
 from std / re import match, find, re
 from std / strutils import strip, split
 from std / strformat import fmt

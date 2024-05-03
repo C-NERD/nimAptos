@@ -1,6 +1,13 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## implementation for aptos payload
+
 import std / [json, tables, strutils]
-from std / jsonutils import toJson, jsonTo 
-#from std / options import Option, isNone
+from std / jsonutils import toJson, jsonTo
 from std / strformat import fmt
 
 import pkg / [bcs, jsony]

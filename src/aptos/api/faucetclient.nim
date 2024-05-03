@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## implementation for faucet client node procs
+
 ## std imports
 import std / [uri, httpcore]
 import pkg / [jsony]

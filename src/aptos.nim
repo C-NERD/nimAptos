@@ -26,7 +26,6 @@ import aptos / utils as aptosutils
 import aptos / api / [aptosclient, faucetclient, utils, nodetypes]
 import aptos / aptostypes / [resourcetypes, moduleid, payload, transaction, signature]
 import aptos / movetypes / [address, arguments]
-#import aptos / ed25519 / ed25519
 
 ## project exports
 export account, resourcetypes, moduleid, payload, transaction, address, arguments, aptosclient, faucetclient, nodetypes, bcs, utils, aptosutils
