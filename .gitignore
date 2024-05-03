@@ -1,0 +1,20 @@
+tests/tests
+tests/tests.nim
+nimble.develop
+nimble.paths
+#nimble.lock
+
+## atlas cfg
+src/nim.cfg
+config.nims
+#examples/config.nims
+
+## ignore executables in examples directory
+examples/collections
+examples/send_aptos
+examples/custom_payload
+examples/create_wallet
+examples/direct_transfer
+examples/faucet
+examples/publish_contract
+examples/multi_sig_wallet
