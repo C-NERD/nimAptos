@@ -1,3 +1,8 @@
+## code to donate to my aptos address via custom contract
+## the contract is available here
+## NOTE :: this script automatically runs on the testnet
+## NOTE :: do not run this on the mainnet if you do not intend on donating
+
 {.define : debug.}
 
 import std / [asyncdispatch, logging]
@@ -8,19 +13,12 @@ import aptos
 let logger = newConsoleLogger(fmtStr = "[$levelname] -> ")
 addHandler(logger)
 
+const contractAddr = ""
 let 
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
     account1 = newAccount(
         getEnv("APTOS_ADDRESS1"),
         getEnv("APTOS_SEED1")
-    )
-    account2 = newAccount(
-        getEnv("APTOS_ADDRESS2"),
-        getEnv("APTOS_SEED2")
     ) 
-
-## run mint function from smart contract
-## NOTE :: this smart contract will be made available on the mainnet. You come participate
-## in minting or any other interaction on the contract
 
 client.close()

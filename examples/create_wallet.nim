@@ -1,4 +1,4 @@
-{.define : debug.}
+#{.define : nodeSignature.}
 
 import std / [asyncdispatch, logging]
 from std / os import getEnv

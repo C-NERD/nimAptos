@@ -1,5 +1,3 @@
-{.define : debug.}
-
 import std / [asyncdispatch, logging]
 from std / os import getEnv
 from std / strformat import fmt

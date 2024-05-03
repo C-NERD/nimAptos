@@ -1,4 +1,3 @@
-{.define : debug.}
 #{.define : nodeSignature.}
 
 import std / [asyncdispatch, logging]

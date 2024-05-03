@@ -1,4 +1,4 @@
-{.define : debug.}
+#{.define : nodeSignature.}
 
 import std / [asyncdispatch, logging, json]
 from std / os import getEnv
@@ -11,8 +11,8 @@ addHandler(logger)
 let 
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
     account1 = newAccount(getEnv("APTOS_ADDRESS1"), getEnv("APTOS_SEED1"))
-    account2 = newAccount(getEnv("APTOS_ADDRESS3"), getEnv("APTOS_SEED3"))
-    account3 = newAccount(getEnv("APTOS_ADDRESS4"), getEnv("APTOS_SEED4"))
+    account2 = newAccount(getEnv("APTOS_ADDRESS2"), getEnv("APTOS_SEED2"))
+    account3 = newAccount(getEnv("APTOS_ADDRESS3"), getEnv("APTOS_SEED3"))
 
 info "creating multisig wallet"
 let 

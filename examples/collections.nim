@@ -1,6 +1,5 @@
-{.define : debug.}
 #{.define : nodeSignature.}
-## TODO :: improve code to prevent error from offer token
+
 import std / [asyncdispatch, logging]
 from std / os import getEnv
 from std / strformat import fmt
