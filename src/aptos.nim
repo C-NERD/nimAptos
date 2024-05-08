@@ -201,7 +201,7 @@ proc createCollection*(account : RefAptosAccount | RefMultiSigAccount, client : 
         moduleid : newModuleId("0x3::token"),
         function : "create_collection_script",
         type_arguments : @[],
-        arguments : @[eArg name, eArg description, eArg uri, eArg high(uint64), eArg @[eArg false, eArg false, eArg false]]
+        arguments : @[extendedEArg name, extendedEArg description, extendedEArg uri, eArg high(uint64), extendedEArg(@[eArg false, eArg false, eArg false])]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
@@ -217,9 +217,9 @@ proc createToken*(account : RefAptosAccount | RefMultiSigAccount, client : Aptos
         function : "create_token_script",
         type_arguments : @[],
         arguments : @[
-            eArg collection, eArg name, eArg description, eArg supply, eArg supply, eArg uri, eArg account.address, 
-            eArg uint64(1000000), eArg royalty_pts_per_million, eArg @[eArg false, eArg false, eArg false, eArg false, eArg false], 
-            eArg empty, eArg empty, eArg empty
+            extendedEArg collection, extendedEArg name, extendedEArg description, eArg supply, eArg supply, extendedEArg uri, eArg account.address, 
+            eArg uint64(1000000), eArg royalty_pts_per_million, extendedEArg(@[eArg false, eArg false, eArg false, eArg false, eArg false]),
+            extendedEArg(empty), extendedEArg(empty), extendedEArg(empty)
         ]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
@@ -234,7 +234,7 @@ proc offerToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosC
         function : "offer_script",
         type_arguments : @[],
         arguments : @[
-            eArg recipient, eArg creator, eArg collection, eArg token, eArg property_version, eArg uint64(amount.toOcta())
+            eArg recipient, eArg creator, extendedEArg collection, extendedEArg token, eArg property_version, eArg uint64(amount.toOcta())
         ]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
@@ -248,7 +248,7 @@ proc claimToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosC
         moduleid : newModuleId("0x3::token_transfers"),
         function : "claim_script",
         type_arguments : @[],
-        arguments : @[eArg sender, eArg creator, eArg collection, eArg token, eArg property_version]
+        arguments : @[eArg sender, eArg creator, extendedEArg collection, extendedEArg token, eArg property_version]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
@@ -271,7 +271,7 @@ proc directTransferToken*(sender, recipient : RefAptosAccount | RefMultiSigAccou
         moduleid : newModuleId("0x3::token"),
         function : "direct_transfer_script",
         type_arguments : @[],
-        arguments : @[eArg creator, eArg collection, eArg token, eArg property_version, eArg uint64(amount.toOcta())]
+        arguments : @[eArg creator, extendedEArg collection, extendedEArg token, eArg property_version, eArg uint64(amount.toOcta())]
     )
     result = multiAgentTransact[EntryFunctionPayload](sender, singleSigners, multiSigners, client, payload, max_gas_amount, gas_price, txn_duration)
 
@@ -307,7 +307,7 @@ proc registerMultiSigAccount*(account : RefAptosAccount | RefMultiSigAccount, cl
         function : "create_with_owners_then_remove_bootstrapper",
         type_arguments : @[],
         arguments : @[
-            eArg ownersArg, eArg num_of_sig_req, eArg empty, eArg empty
+            extendedEArg(ownersArg), eArg num_of_sig_req, extendedEArg(empty), extendedEArg(empty)
         ]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
@@ -325,7 +325,7 @@ proc publishPackage*(account : RefAptosAccount | RefMultiSigAccount,  client : A
         function : "publish_package_txn",
         type_arguments : @[],
         arguments : @[
-            eArg fromBytes(package_meta), eArg modulesArg
+            eArg fromBytes(package_meta), extendedEArg(modulesArg)
         ]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)

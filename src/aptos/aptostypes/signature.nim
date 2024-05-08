@@ -6,6 +6,11 @@
 ##
 ## implementation for transaction signatures
 
+## std imports
+import std / [bitops]
+from std / strformat import fmt
+
+## pkg imports
 import pkg / [jsony]
 
 type
@@ -36,6 +41,33 @@ type
             secondary_signer_addresses* : seq[string]
             sender* : ref Signature
             secondary_signers* : seq[Signature]
+
+const MAX_SIGNATURES_SUPPORTED = 32
+
+proc createBitMap*(bits : seq[int]) : array[4, byte] =
+
+    let firstBitInByte = 128'u8
+    var dupCheck : seq[int]
+    for pos in 0..<len(bits):
+        
+        if bits[pos] >= MAX_SIGNATURES_SUPPORTED:
+
+            raise newException(CatchableError, fmt"signature cannot be larger than {MAX_SIGNATURES_SUPPORTED}")
+        
+        elif bits[pos] in dupCheck:
+
+            raise newException(CatchableError, "duplicate bits detected")
+
+        elif pos > 0:
+
+            if bits[pos] <= bits[pos - 1]:
+
+                raise newException(CatchableError, "the bits should be sorted in ascending order")
+
+        dupCheck.add bits[pos]
+
+        let byteOffset = int(bits[pos] div 8)
+        result[byteOffset] = bitor(result[byteOffset], (rotateRightBits(firstBitInByte, (bits[pos] mod 8))))
 
 proc dumpHook*(s : var string, v : Signature) =
 

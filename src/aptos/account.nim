@@ -15,9 +15,8 @@ import std / [asyncdispatch]
 from std / re import match, re
 from std / times import epochTime
 from std / strformat import fmt
-from std / strutils import toLowerAscii, parseInt, isEmptyOrWhitespace
+from std / strutils import toLowerAscii, parseInt, isEmptyOrWhitespace, toBin
 from std / json import getStr, `[]`
-from std / bitops import rotateLeftBits, bitor
 from std / options import some
 
 ## nimble imports
@@ -100,9 +99,13 @@ template multiSignTransaction() =
     var 
         publicKeys : seq[string]
         signatures : seq[string]
-        rawBitMap = 0
-    for pos in 0..<len(account.accounts):
-        
+        bitPos : seq[int]
+
+    let acctLen = len(account.accounts)
+    assert acctLen < 32, "bitmap value exceeds maximum value"
+
+    for pos in 0..<acctLen:
+         
         let 
             pubkey = "0x" & account.accounts[pos].publicKey
             signature = "0x" & signHex(account.accounts[pos].privateKey, submission)
@@ -111,22 +114,26 @@ template multiSignTransaction() =
         signatures.add signature
         
         assert verifyHex(pubkey, signature, submission), "cannot verify signature for " & pubkey
-        
-        let shift = 31 - pos
-        rawBitMap = bitor(rawBitMap, int(rotateLeftBits(1'u, shift)))
+        bitPos.add pos
+    
+    let 
+        rawBitMap = createBitMap(bitPos)
+        threshold = account.num_signatures_required
 
-    let bitMap = cast[array[4, byte]](rawBitMap) ## 4 bytes endian bit map
+    var bitMap = "0b"
+    for each in rawBitMap:
 
-    #await account.refresh(client)
-    let threshold = account.num_signatures_required
+        bitMap.add toBin(BiggestInt(each), 8) 
 
     result.signature = Signature(
         `type` : MultiSignature,
         public_keys : publicKeys,
         signatures : signatures,
-        bitmap : "0x" & toHex(bitMap, true),
+        bitmap : bitMap,
         threshold : threshold
     )
+    #echo result.signature
+    #quit(QuitSuccess)
 
 proc signTransaction*[T : TransactionPayload](account : RefAptosAccount, client : AptosClient, transaction : RawTransaction[T], encodedTxn : string = "") : Future[SignTransaction[T]] {.async.} =
     ## signs transaction by encoding transaction to bcs on the node
@@ -291,7 +298,7 @@ proc getAddressFromKey*(pubkey : string) : string =
 
     return "0x" & toHex(sha3_final(ctx), true)
 
-proc getAddressFromKeys*(keys : seq[string], threshold : range[1..32]) : string =
+#[proc getAddressFromKeys*(keys : seq[string], threshold : range[1..32]) : string =
     ## gets address from public keys
     ## for multi sig accounts
     
@@ -318,7 +325,7 @@ proc getAddressFromKeys*(keys : seq[string], threshold : range[1..32]) : string 
     sha3_update(ctx, publicKeysConcat, len(publicKeysConcat))
     sha3_update(ctx, multiEd25519, 1)
 
-    return "0x" & toHex(sha3_final(ctx), true)
+    return "0x" & toHex(sha3_final(ctx), true)]#
 
 proc accountBalanceApt*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient) : Future[float] {.async.} =
 
@@ -370,7 +377,7 @@ proc newMultiSigAccount*(accounts : seq[RefAptosAccount], address : string) : Re
         accounts : accounts
     )
 
-proc createWallet*(client : AptosClient) : Future[RefAptosAccount] {.async.} =
+proc createAccount*(client : AptosClient) : Future[RefAptosAccount] {.async.} =
     ## This proc only creates a new random keypair and seed hash
     ## and it initializes a new RefAptosAccount object
     ## it does not how ever register the new wallet with the

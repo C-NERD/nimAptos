@@ -11,8 +11,8 @@ addHandler(logger)
 info "creating new wallets..."
 let 
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1") 
-    newWallet1 = waitFor client.createWallet()
-    newWallet2 = waitFor client.createWallet()
+    newWallet1 = waitFor client.createAccount()
+    newWallet2 = waitFor client.createAccount()
 
 notice fmt"generated wallet {newWallet1.address} with seed {newWallet1.seed}"
 notice fmt"generated wallet {newWallet2.address} with seed {newWallet2.seed}"

@@ -9,7 +9,7 @@
 {.experimental: "codeReordering".}
 
 import std / [json]
-from std / strutils import parseBiggestUInt#, parseBool
+from std / strutils import parseBiggestUInt, toHex, isEmptyOrWhitespace
 from std / strformat import fmt
 
 import pkg / [bcs, jsony]
@@ -19,23 +19,19 @@ from ../errors import NotImplemented
 
 type
 
-    ArgumentsBase* = string | SomeUnsignedInt | uint128 | uint256 | Address | HexString | bool | seq
+    ArgumentsBase* = SomeUnsignedInt | uint128 | uint256 | Address | HexString | bool
     ## These represents native move types
     ## HexString represents vector<u8> which is bytes
 
     ArgumentsEnum* {.pure.} = enum
         
-        String, U8, U16, U32, U64, U128, U256, Addr, Bool, Vector, Hex ## TODO :: find variant of vector and hex type
+        U8, U16, U32, U64, U128, U256, Addr, Bool, Hex
 
     Arguments = ref object of RootObj
 
     ScriptArguments* = ref object of Arguments
-
+        
         case `type` : ArgumentsEnum
-
-        of String:
-
-            str_arg : string
 
         of U8:
 
@@ -68,22 +64,15 @@ type
         of Hex:
 
             hex_arg : HexString
+            data : string ## json serialization for data of hex, for seq and string
 
         of Bool:
 
             bool_arg : bool
-
-        of Vector:
-
-            vec_arg : seq[ScriptArguments]
 
     EntryArguments* = ref object of Arguments
-
+        
         case `type` : ArgumentsEnum
-
-        of String:
-
-            str_arg : string
 
         of U8:
 
@@ -116,14 +105,11 @@ type
         of Hex:
 
             hex_arg : HexString
+            data : string ## json serialization for data of hex, for seq and string
 
         of Bool:
 
             bool_arg : bool
-
-        of Vector:
-
-            vec_arg : seq[EntryArguments]
 
 template variant(data : ArgumentsBase) : untyped =
 
@@ -143,7 +129,7 @@ template variant(data : ArgumentsBase) : untyped =
 
         3
 
-    elif data is string:
+    elif data is HexString:
 
         4
 
@@ -169,10 +155,7 @@ template variant(data : ArgumentsBase) : untyped =
 
 proc baseSerializeScriptArg(data : ArgumentsBase) : HexString =
     
-    when data is not seq and data is not HexString: ## assuming that seq does not have variant. Might have to change in the future
-
-        result.add serialize[uint8](uint8(variant(data)))
-
+    result.add serialize[uint8](uint8(variant(data)))
     when data is HexString:
         
         ## serialize as bytes
@@ -185,16 +168,6 @@ proc baseSerializeScriptArg(data : ArgumentsBase) : HexString =
     elif data is Address:
 
         result.add address.serialize(data)
-
-    elif data is seq[ScriptArguments]:
-
-        for val in serializeUleb128(uint32(len(data))):
-
-            result.add serialize[uint8](val)
-
-        for item in data:
-
-            result.add serialize(item) 
 
     else:
 
@@ -215,16 +188,6 @@ proc baseSerializeEntryArg(data : ArgumentsBase, asByte : bool = true) : HexStri
     elif data is Address:
 
         hex.add address.serialize(data)
-
-    elif data is seq[EntryArguments]:
-
-        for val in serializeUleb128(uint32(len(data))):
-
-            hex.add serialize[uint8](val)
-
-        for item in data:
-
-            hex.add serialize(item, false)
 
     else:
 
@@ -263,7 +226,7 @@ template baseDeSerializeScriptArg(data : var HexString, customcode : untyped) : 
 
     elif variant == 4:
 
-        var base {.inject.} = bcs.deSerialize[string](data)
+        var base {.inject.} = bcs.deSerialize[string](data) ## implement code to properly deserialize hex string
         customcode
 
     elif variant == 5:
@@ -292,11 +255,7 @@ template baseDeSerializeScriptArg(data : var HexString, customcode : untyped) : 
 
 converter sArg*(data : ArgumentsBase) : ScriptArguments =
 
-    when data is string:
-
-        return ScriptArguments(`type` : String, str_arg : data)
-
-    elif data is uint8:
+    when data is uint8:
 
         return ScriptArguments(`type` : U8, u8_arg : data)
 
@@ -332,22 +291,13 @@ converter sArg*(data : ArgumentsBase) : ScriptArguments =
 
         return ScriptArguments(`type` : Bool, bool_arg : data)
 
-    elif data is seq[ScriptArguments]:
-
-        return ScriptArguments(`type` : Vector, vec_arg : data)
-
     else:
 
-        {.fatal : fmt"{typeof(data)} is not supported for script arguments".}
-
+        {.fatal : $typeof(data) & " is not supported for script arguments".}
 
 converter eArg*(data : ArgumentsBase) : EntryArguments =
 
-    when data is string:
-
-        return EntryArguments(`type` : String, str_arg : data)
-
-    elif data is uint8:
+    when data is uint8:
 
         return EntryArguments(`type` : U8, u8_arg : data)
 
@@ -383,22 +333,41 @@ converter eArg*(data : ArgumentsBase) : EntryArguments =
 
         return EntryArguments(`type` : Bool, bool_arg : data)
 
-    elif data is seq[EntryArguments]:
+    else:
 
-        return EntryArguments(`type` : Vector, vec_arg : data)
+        {.fatal : $typeof(data) & " is not supported for entry function arguments".}
+
+converter extendedSArg*[T : seq[ScriptArguments] | seq[seq] | string](data : T) : ScriptArguments =
+
+    when T is string:
+
+        return ScriptArguments(`type` : Hex, hex_arg : fromString(toHex(data)), data : "\"" & data & "\"")
+
+    elif T is seq:
+
+        return ScriptArguments(`type` : Hex, hex_arg : fromSeq(data), data : jsony.toJson(data))
 
     else:
 
-        {.fatal : fmt"{typeof(data)} is not supported for entry function arguments".}
+        {.fatal : $typeof(data) & " is not supported as extended script argument".}
+
+converter extendedEArg*[T : seq[EntryArguments] | seq[seq] | string](data : T) : EntryArguments =
+
+    when T is string:
+
+        return EntryArguments(`type` : Hex, hex_arg : fromString(toHex(data)), data : "\"" & data & "\"")
+
+    elif T is seq:
+        
+        return EntryArguments(`type` : Hex, hex_arg : fromSeq(data), data : jsony.toJson(data))
+
+    else:
+
+        {.fatal : $typeof(data) & " is not supported as extended entry function argument".}
 
 template toBase*(data : ScriptArguments | EntryArguments, custom : untyped) : untyped {.dirty.} =
     
     case data.`type`
-
-    of String:
-        
-        let base = data.str_arg
-        custom
 
     of U8:
         
@@ -445,16 +414,11 @@ template toBase*(data : ScriptArguments | EntryArguments, custom : untyped) : un
         let base = data.bool_arg
         custom
 
-    of Vector:
-
-        let base = data.vec_arg
-        custom
-
 proc serialize*(data : EntryArguments, asByte : bool = true) : HexString =
     
     toBase data:
 
-        return baseSerializeEntryArg(base, asByte) 
+        return baseSerializeEntryArg(base, asByte)
 
 #[proc deSerialize*(data : var HexString) : EntryArguments =
 
@@ -472,6 +436,29 @@ proc deSerialize*(data : var HexString) : ScriptArguments =
 
         return sArg base
 
+proc fromSeq[T : seq[ScriptArguments] | seq[EntryArguments] | seq[seq]](data : T) : HexString = 
+
+    when not (T is seq[ScriptArguments] or T is seq[EntryArguments] or T is seq[seq]):
+
+        {.fatal : "seq child type " & $(T) & " not supported".}
+    
+    for val in serializeUleb128(uint32(len(data))):
+
+        result.add bcs.serialize[uint8](val)
+
+    when T is seq[seq]:
+
+        for item in data:
+
+            result.add fromSeq(item)
+
+    else:
+
+        for item in data:
+
+            result.add serialize(item)
+
+## TODO :: confirm if payload response is returned as string regardless of type
 proc parseHook*(s : string, i : var int, v : var ScriptArguments) =
 
     var jsonHook : JsonNode
@@ -492,7 +479,7 @@ proc parseHook*(s : string, i : var int, v : var ScriptArguments) =
 
             discard
         
-        if not isValidAddress(data):
+        if not isValidAddress(data): ## TODO :: serialize string to hex
 
             try:
 
@@ -515,15 +502,6 @@ proc parseHook*(s : string, i : var int, v : var ScriptArguments) =
 
         let data = getBool(jsonHook)
         v = sArg data
-
-    of JArray:
-
-        var vec : seq[ScriptArguments]
-        for child in jsonHook:
-
-            vec.add fromJson($child, ScriptArguments)
-
-        v = sArg vec
 
     else:
 
@@ -574,15 +552,6 @@ proc parseHook*(s : string, i : var int, v : var EntryArguments) =
         let data = getBool(jsonHook)
         v = eArg data
 
-    of JArray:
-
-        var vec : seq[EntryArguments]
-        for child in jsonHook:
-
-            vec.add fromJson($child, EntryArguments)
-
-        v = eArg vec
-
     else:
 
         raise newException(ValueError, fmt"Invalid json type {jsonHook.kind} for EntryArguments")
@@ -591,24 +560,20 @@ proc dumpHook*(s : var string, v : ScriptArguments) =
 
     toBase v:
         
-        if v.`type` == String or v.`type` == Addr or v.`type` == Hex or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
+        if v.`type` == Addr or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
             ## uint8, uint16 and uint32 are serialized normally
 
             s = toJson(base)
-        
-        elif v.`type` == Vector:
-            
-            let vecLen = len(v.vec_arg) ## using vec_arg directly due to compilation issue as a result of
-            ## dynamic conditions with case under toBase
-            s = "["
-            for pos in 0..<vecLen:
 
-                s.add toJson(v.vec_arg[pos])
-                if pos != vecLen - 1:
+        elif v.`type` == Hex:
 
-                    s.add ","
+            if v.data.isEmptyOrWhitespace():
 
-            s.add "]"
+                s = toJson(base)
+
+            else:
+
+                s = v.data
 
         else:
 
@@ -618,22 +583,19 @@ proc dumpHook*(s : var string, v : EntryArguments) =
 
     toBase v:
         
-        if v.`type` == String or v.`type` == Addr or v.`type` == Hex or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
+        if v.`type` == Addr or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
 
             s = toJson(base)
 
-        elif v.`type` == Vector:
-            
-            let vecLen = len(v.vec_arg)
-            s = "["
-            for pos in 0..<vecLen:
+        elif v.`type` == Hex:
 
-                s.add toJson(v.vec_arg[pos])
-                if pos != vecLen - 1:
+            if v.data.isEmptyOrWhitespace():
 
-                    s.add ","
+                s = toJson(base)
 
-            s.add "]"
+            else:
+
+                s = v.data
 
         else:
 
