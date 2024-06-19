@@ -1,4 +1,4 @@
-#{.define : nodeSignature.}
+#{.define : nodeSerialization.}
 
 import std / [asyncdispatch, logging, json]
 from std / os import getEnv

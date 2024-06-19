@@ -11,9 +11,9 @@ let
     address2 = getEnv("APTOS_ADDRESS2")
     address3 = getEnv("APTOS_ADDRESS3")
     address4 = getEnv("APTOS_ADDRESS4")
-    address5 = getEnv("APTOS_MULTISIG")
+    #address5 = getEnv("APTOS_MULTISIG")
 
-info fmt"funding wallets {address1} and {address2} with faucet..."
+info fmt"funding wallets with faucet..."
 let 
     faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com")
     hash1 = waitFor faucetClient.faucetFund(address1, 1.toOcta())
