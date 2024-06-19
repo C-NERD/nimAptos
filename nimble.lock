@@ -11,16 +11,6 @@
         "sha1": "00f7414c50c204022ee9e9068699f38bd41e22fe"
       }
     },
-    "jsony": {
-      "version": "1.1.5",
-      "vcsRevision": "8770d7be70572f250bce69f2245dfbcf836a4d4b",
-      "url": "https://github.com/inv2004/jsony",
-      "downloadMethod": "git",
-      "dependencies": [],
-      "checksums": {
-        "sha1": "9fa7a9476c63719988ecc0eb94e7d82b97113468"
-      }
-    },
     "sha3": {
       "version": "0.7",
       "vcsRevision": "7e1a5194668371c8fd4024054ac4d8c7431eddba",
@@ -33,14 +23,14 @@
     },
     "bcs": {
       "version": "0.3.0",
-      "vcsRevision": "e005e6531761557ac96b6f69d5a38c5372c9c8bc",
+      "vcsRevision": "2d078f005f09bf4f0db84e048873a69fd3be9ac8",
       "url": "",
       "downloadMethod": "git",
       "dependencies": [
         "integers"
       ],
       "checksums": {
-        "sha1": "64da4a25308b6c456eb1c61e4974bde4bbc71552"
+        "sha1": "b0f6da0edd8507da469722c4d6096af187c89ff8"
       }
     },
     "nimcrypto": {

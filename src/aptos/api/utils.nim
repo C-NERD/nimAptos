@@ -9,8 +9,8 @@
 from std / uri import parseUri, Uri, `/`, encodeQuery
 from nodetypes import LedgerInfo
 from std / strutils import split, parseInt
-
-import pkg / [jsony]
+from std / jsonutils import toJson
+from std / json import `$`, JsonNode
 
 export split, parseInt, `/`, encodeQuery 
 
@@ -50,7 +50,7 @@ type
     FaucetClient* = ref object of BaseClient
 
 template callNode*(client : BaseClient, path : string, `method` : HttpMethod, params : seq[(string, string)], 
-    payload : tuple | object | ref object | seq, callback : untyped) =
+    payload : tuple | object | ref object | seq | JsonNode, callback : untyped) =
 
     var endpoint = client.baseUrl / path
     endpoint.query = encodeQuery(params)
@@ -77,10 +77,16 @@ template callNode*(client : BaseClient, path : string, `method` : HttpMethod, pa
 
             headers.add "Content-Type", "application/json"
             withLock client.clientLock:
-            
-                {.cast(gcsafe).}:
+                
+                when payload is not JsonNode:
+                    
+                    {.cast(gcsafe).}:
 
-                    jPayload = toJson(payload)
+                        jPayload = $toJson(payload)
+
+                else:
+
+                    jPayload = $payload
         
         withLock client.clientLock:
 
@@ -111,9 +117,15 @@ template callNode*(client : BaseClient, path : string, `method` : HttpMethod, pa
             info(logHeader & "\n" & $headers)
 
         req.headers = headers
-        {.cast(gcsafe).}:
+        when payload is not JsonNode:
+            
+            {.cast(gcsafe).}:
 
-            let jPayload = toJson(payload)
+                let jPayload = $toJson(payload)
+
+        else:
+
+            let jPayload = $payload
 
         fetch(req, newfetchOptions(`method`, jPayload, fmCors, fcInclude, fchDefault, frpNoReferrer, true))
             .then(proc(resp : Response) =

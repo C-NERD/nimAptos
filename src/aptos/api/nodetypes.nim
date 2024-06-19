@@ -6,11 +6,8 @@
 ##
 ## implementation for aptos node types
 
-from std / strutils import removePrefix, removeSuffix, strip, split, parseUInt
-from std / json import JsonNode
-from std / options import isNone, Option
-
-from pkg / jsony import toJson
+import std / [json, jsonutils]
+from std / options import isNone, Option, get
 
 type
 
@@ -40,41 +37,24 @@ type
         block_height*, block_hash*, block_timestamp*, first_version*, last_version* : string
         transactions* : JsonNode
 
-proc parseHook*(s : string, i : var int, v : var AccountData) =
-
-    ## separate fields
-    var data = s
-    data.removePrefix("{")
-    data.removeSuffix("}")
-    data = data.strip()
+proc toJsonHook*(v : ViewRequest) : JsonNode =
     
-    ## extract values from fields
-    let fields = data.split(",")
-    var 
-        sequence_number = fields[0].strip().split(":")[1].strip()
-        authentication_key = fields[1].strip().split(":")[1].strip()
-    
-    ## sanitize values
-    sequence_number.removePrefix("\"")
-    sequence_number.removeSuffix("\"")
-    authentication_key.removePrefix("\"")
-    authentication_key.removeSuffix("\"")
-    
-    ## create new object
-    v = AccountData(
-        sequence_number : uint64(parseUInt(sequence_number)),
-        authentication_key : authentication_key
-    )
-
-proc dumpHook*(s : var string, v : ViewRequest) =
-
-    s.add "{\"function\" : \"" & v.function & "\","
-    s.add "\"type_arguments\" : " & toJson(v.type_arguments) & ","
+    var s = "{\"function\" : \"" & v.function & "\","
+    s.add "\"type_arguments\" : " & $toJson(v.type_arguments) & ","
     if v.arguments.isNone():
 
         s.add "\"arguments\" : []}"
 
     else:
+        
+        var args = "["
+        let arguments = v.arguments.get()
+        for each in arguments.fields():
 
-        s.add "\"arguments\" : " & toJson(v.arguments) & "}"
- 
+            args.add $toJson(each)
+
+        args.add "]"
+        s.add "\"arguments\" : " & args & "}"
+    
+    return parseJson(s)
+

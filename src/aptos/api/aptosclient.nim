@@ -8,16 +8,13 @@
 
 ## {.experimental : "codeReordering".}
 ## std imports
-import std / [uri, httpcore, strutils]
-import std / json except JsonError
+import std / [uri, json, jsonutils, httpcore, strutils]
 from std / strformat import fmt
-
-## nimble imports
-import pkg / [jsony]
 
 ## project imports
 import nodetypes, utils
-import ../aptostypes/[resourcetypes, transaction, payload]
+import ../aptostypes/[resourcetypes, transaction]
+import ../aptostypes/payload/payload
 
 export ApiError, InvalidApiResponse, AptosClient, getNodeInfo, close
 
@@ -37,9 +34,9 @@ proc getAccount*(client : AptosClient, address : string, ledger_version : int64 
             
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(AccountData)
+                result = jsonTo(parseJson(respBody), AccountData)
 
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 
@@ -57,9 +54,9 @@ proc getAccountResource*(client : AptosClient, address, resource_type : string,
             
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(MoveResource)
+                result = jsonTo(parseJson(respBody), MoveResource)
 
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 
@@ -85,9 +82,9 @@ proc getAccountResources*(client : AptosClient, address : string, ledger_version
 
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(seq[MoveResource])
+                result = jsonTo(parseJson(respBody), seq[MoveResource])
 
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
         
@@ -105,9 +102,9 @@ proc getAccountModule*(client : AptosClient, address, module_name : string, ledg
 
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(MoveModule)
+                result = jsonTo(parseJson(respBody), MoveModule)
 
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 
@@ -133,9 +130,9 @@ proc getAccountModules*(client : AptosClient, address : string, ledger_version :
 
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(seq[MoveModule])
+                result = jsonTo(parseJson(respBody), seq[MoveModule])
 
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 
@@ -150,9 +147,9 @@ proc getBlockByHeight*(client : AptosClient, height : int, with_transactions : b
 
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(Block)
+                result = jsonTo(parseJson(respBody), Block)
 
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 
@@ -166,7 +163,7 @@ proc getBlockByVersion*(client : AptosClient, version : int, with_transactions :
 
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(Block)
+                result = jsonTo(parseJson(respBody), Block)
 
         except JsonParsingError:
 
@@ -245,9 +242,9 @@ proc getLedgerInfo*(client : AptosClient) : Future[LedgerInfo] {.async, gcsafe.}
             
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(LedgerInfo)
+                result = jsonTo(parseJson(respBody), LedgerInfo)
         
-        except JsonError:
+        except JsonParsingError:
             
             raise newException(InvalidApiResponse, respBody)
 
@@ -311,17 +308,17 @@ proc getTransactions*(client : AptosClient, limit : int = -1, start : int64 = -1
 
             raise newException(InvalidApiResponse, respBody)
         
-proc submitTransaction*[T : TransactionPayload](client : AptosClient, transaction : SignTransaction[T]) : Future[SubmittedTransaction[T]] {.async, gcsafe.} =
+proc submitTransaction*[T : TransactionPayload](client : AptosClient, transaction : SignedTransaction[T]) : Future[SubmittedTransaction[T]] {.async, gcsafe.} =
     
     callNode client, "transactions", HttpPost, @[], transaction:
         
         try:
             
             {.cast(gcsafe).}:
+                
+                fromJsonHook(result, parseJson(respBody))
 
-                result = respBody.fromJson(SubmittedTransaction[T])
-
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 
@@ -371,7 +368,7 @@ proc getAccountTransactions*(client : AptosClient, address : string, limit : int
             raise newException(InvalidApiResponse, respBody)
         
 proc submitBatchTransactions*[T : tuple](client : AptosClient, transactions : T) : Future[JsonNode] {.async, gcsafe.} =
-    ## param transaction : This should be a tuple of SignTransactions
+    ## param transaction : This should be a tuple of SignednTransactions
 
     callNode client, "transactions/batch", HttpPost, @[], transactions:
         
@@ -383,7 +380,7 @@ proc submitBatchTransactions*[T : tuple](client : AptosClient, transactions : T)
 
             raise newException(InvalidApiResponse, respBody)
 
-proc simulateTransaction*(client : AptosClient, transaction : SignTransaction, estimate_gas_unit_price = false; estimate_max_gas_amount = false; estimate_prioritized_gas_unit_price : bool = false) : 
+proc simulateTransaction*(client : AptosClient, transaction : SignedTransaction, estimate_gas_unit_price = false; estimate_max_gas_amount = false; estimate_prioritized_gas_unit_price : bool = false) : 
     Future[JsonNode] {.gcsafe, async.} =
 
     callNode client, "transactions/simulate", HttpPost, @[
@@ -425,9 +422,9 @@ proc estimateGasPrice*(client : AptosClient) :
             
             {.cast(gcsafe).}:
 
-                result = respBody.fromJson(tuple[deprioritized_gas_estimate, gas_estimate, prioritized_gas_estimate : int])
+                result = jsonTo(parseJson(respBody), tuple[deprioritized_gas_estimate, gas_estimate, prioritized_gas_estimate : int])
         
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 
@@ -440,7 +437,7 @@ proc executeModuleView*[T : tuple](client : AptosClient, payload : ViewRequest[T
 
         params.add ("ledger_version", $ledger_version)
         
-    callNode client, "view", HttpPost, params, payload:
+    callNode client, "view", HttpPost, params, toJsonHook(payload):
 
         result = respBody
 

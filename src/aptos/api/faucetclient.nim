@@ -8,7 +8,8 @@
 
 ## std imports
 import std / [uri, httpcore]
-import pkg / [jsony]
+from std / json import parseJson, JsonParsingError
+from std / jsonutils import jsonTo
 
 ## project imports
 import utils
@@ -25,9 +26,9 @@ method faucetFund*(client : FaucetClient, address : string, amount : int) : Futu
             
             {.cast(gcsafe).}:
 
-                return respBody.fromJson(typeof(result))
+                return jsonTo(parseJson(respBody), typeof(result))
 
-        except JsonError:
+        except JsonParsingError:
 
             raise newException(InvalidApiResponse, respBody)
 

@@ -8,4 +8,4 @@ srcDir        = "src"
 
 # Dependencies
 
-requires "nim >= 1.6.0", "libsodium == 0.7.1", "sha3 == 0.7", "jsony == 1.1.5", "nimcrypto == 0.6.0", "bcs == 0.3.0"
+requires "nim >= 2.0.0", "libsodium == 0.7.1", "sha3 == 0.7.0", "nimcrypto == 0.6.0", "bcs == 0.3.0"
