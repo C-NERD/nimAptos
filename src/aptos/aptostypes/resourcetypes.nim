@@ -7,7 +7,6 @@
 ## implementations for aptos resource types
 
 import std / [json]
-import pkg / [jsony]
 
 type
 
@@ -53,48 +52,3 @@ type
         bytecode* : string
         abi* : MoveFunction
 
-proc parseHook*(s : string, i : var int, v : var MoveResource) =
-
-    var jsonResource : JsonNode
-    parseHook(s, i, jsonResource)
-    v = MoveResource(
-        `type` : getStr(jsonResource["type"]),
-        data : jsonResource["data"]
-    )
-
-proc parseHook*(s : string, i : var int, v : var Struct) =
-
-    var jsonResource : JsonNode
-    parseHook(s, i, jsonResource)
-    v = Struct(
-        name : getStr(jsonResource["name"]),
-        is_native : getBool(jsonResource["is_native"]),
-        abilities : ($jsonResource["abilities"]).fromJson(seq[string]),
-        generic_type_params : ($jsonResource["generic_type_params"]).fromJson(seq[GenericParam]),
-        fields : ($jsonResource["fields"]).fromJson(seq[tuple[name, `type` : string]])
-    )
-
-proc parseHook*(s : string, i : var int, v : var MoveFunction) =
-
-    var jsonResource : JsonNode
-    parseHook(s, i, jsonResource)
-    v = MoveFunction(
-        name : getStr(jsonResource["name"]),
-        visibility : getStr(jsonResource["visibility"]),
-        is_entry : getBool(jsonResource["is_entry"]),
-        generic_type_params : ($jsonResource["generic_type_params"]).fromJson(seq[GenericParam]),
-        params : ($jsonResource["params"]).fromJson(seq[string]),
-        `return` : ($jsonResource["params"]).fromJson(seq[string])
-    )
-
-proc parseHook*(s : string, i : var int, v : var MoveModule) =
-
-    var jsonResource : JsonNode
-    parseHook(s, i, jsonResource)
-    v = MoveModule(
-        address : getStr(jsonResource["address"]),
-        name : getStr(jsonResource["name"]),
-        friends : ($jsonResource["friends"]).fromJson(seq[string]),
-        exposed_functions : ($jsonResource["exposed_functions"]).fromJson(seq[MoveFunction]),
-        structs : ($jsonResource["structs"]).fromJson(seq[Struct])
-    )

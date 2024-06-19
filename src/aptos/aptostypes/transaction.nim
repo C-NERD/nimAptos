@@ -6,12 +6,13 @@
 ##
 ## implementation of aptos transactions
 
-import std / [json]
+import std / [json, jsonutils]
 from std / strutils import removePrefix, parseBiggestUInt
 
-import pkg / [jsony, bcs]
+import pkg / [bcs]
 
-import signature, payload
+import authenticator / authenticator
+import payload / payload
 import ../movetypes/address
 
 type
@@ -22,11 +23,11 @@ type
         sender*, sequence_number*, max_gas_amount*, gas_unit_price*, expiration_timestamp_secs* : string
         payload* : T
     
-    SignTransaction*[T : TransactionPayload] = ref object of RawTransaction[T] ## raw transaction with signature
+    SignedTransaction*[T : TransactionPayload] = ref object of RawTransaction[T] ## raw transaction with signature
+ 
+        authenticator* : Authenticator
 
-        signature* : Signature
-
-    SubmittedTransaction*[T : TransactionPayload] = ref object of SignTransaction[T] ## transaction object returned from submitTransaction proc
+    SubmittedTransaction*[T : TransactionPayload] = ref object of SignedTransaction[T] ## transaction object returned from submitTransaction proc
 
         hash* : string
 
@@ -34,6 +35,32 @@ type
 
         secondary_signers* : seq[string]
 
+## utils procs
+proc toSignedTransaction*[T : TransactionPayload](txn : RawTransaction[T] | MultiAgentRawTransaction[T]) : SignedTransaction[T] =
+
+    result = SignedTransaction[T](
+        chain_id : txn.chain_id,
+        sender : txn.sender, 
+        sequence_number : txn.sequence_number, 
+        max_gas_amount : txn.max_gas_amount, 
+        gas_unit_price : txn.gas_unit_price, 
+        expiration_timestamp_secs : txn.expiration_timestamp_secs,
+        payload : txn.payload
+    )
+
+proc toMultiAgentRawTransaction*[T : TransactionPayload](txn : RawTransaction[T] | SignedTransaction[T]) : MultiAgentRawTransaction[T] =
+
+    result = MultiAgentRawTransaction[T](
+        chain_id : txn.chain_id,
+        sender : txn.sender, 
+        sequence_number : txn.sequence_number, 
+        max_gas_amount : txn.max_gas_amount, 
+        gas_unit_price : txn.gas_unit_price, 
+        expiration_timestamp_secs : txn.expiration_timestamp_secs,
+        payload : txn.payload
+    )
+
+## serialization procs
 proc serialize*(transaction : RawTransaction) : HexString =
     
     if transaction.isNil():
@@ -52,8 +79,8 @@ proc serialize*(transaction : RawTransaction) : HexString =
 
     elif transaction.payload is ScriptPayload:
 
-        payloadHex = serializeScriptPayload[ScriptPayload](transactions.payload)
-
+        payloadHex = serializeScriptPayload[ScriptPayload](transaction.payload)
+    
     result.add payloadHex
 
     result.add bcs.serialize[uint64](parseBiggestUInt(transaction.max_gas_amount))
@@ -78,7 +105,6 @@ proc serialize*[T : TransactionPayload](transaction : MultiAgentRawTransaction[T
 
     let rawTxn = RawTransaction[T](transaction)
     let rawEncode = serialize(rawTxn)
-    #echo "raw : ", rawEncode, "\n"
     result.add rawEncode
     
     ## serialize secondary signers as a sequence of Address
@@ -88,107 +114,89 @@ proc serialize*[T : TransactionPayload](transaction : MultiAgentRawTransaction[T
 
     for signer in transaction.secondary_signers:
 
-        result.add address.serialize(newAddress(signer))
+        result.add address.serialize(initAddress(signer))
 
-proc parseHook*(s : string, i : var int, v : var SubmittedTransaction) =
-
-    var jsonTransaction : JsonNode
-    parseHook(s, i, jsonTransaction)
+proc fromJsonHook*(v : var SubmittedTransaction, s : JsonNode) =
 
     v = SubmittedTransaction(
-        hash : getStr(jsonTransaction["hash"]),
-        sender : getStr(jsonTransaction["sender"]),
-        sequence_number : getStr(jsonTransaction["sequence_number"]),
-        max_gas_amount : getStr(jsonTransaction["max_gas_amount"]),
-        gas_unit_price : getStr(jsonTransaction["gas_unit_price"]),
-        expiration_timestamp_secs : getStr(jsonTransaction["expiration_timestamp_secs"]),
-        signature : ($jsonTransaction["signature"]).fromJson(Signature),
+        hash : getStr(s["hash"]),
+        sender : getStr(s["sender"]),
+        sequence_number : getStr(s["sequence_number"]),
+        max_gas_amount : getStr(s["max_gas_amount"]),
+        gas_unit_price : getStr(s["gas_unit_price"]),
+        expiration_timestamp_secs : getStr(s["expiration_timestamp_secs"]),
     )
+    fromJsonHook(v.authenticator, s["signature"])
 
     when v.payload is EntryFunctionPayload:
         
-        v.payload = ($jsonTransaction["payload"]).fromJson(EntryFunctionPayload)    
+        v.payload = jsonTo(s["payload"], EntryFunctionPayload)    
 
     elif v.payload is ScriptPayload:
 
-        v.payload = ($jsonTransaction["payload"]).fromJson(ScriptPayload)
+        v.payload = jsonTo(s["payload"], ScriptPayload)
 
     else:
 
-        raise newException(ValueError, "unsupported payload type " & payloadType)
+        {.fatal : "unsupported payload type " & $(typeof(v.payload)).}
 
-proc dumpHook*(s : var string, v : RawTransaction) =
+proc toJsonHook*(v : RawTransaction) : JsonNode =
     
-    s.add "{\"chain_id\":\"" & $v.chain_id & "\","
+    var s = "{\"chain_id\":\"" & $v.chain_id & "\","
     s.add "\"sender\":\"" & v.sender & "\","
     s.add "\"sequence_number\":\"" & v.sequence_number & "\","
     s.add "\"max_gas_amount\":\"" & v.max_gas_amount & "\","
     s.add "\"gas_unit_price\":\"" & v.gas_unit_price & "\","
     s.add "\"expiration_timestamp_secs\":\"" & v.expiration_timestamp_secs & "\","
-    s.add "\"payload\":" & jsony.toJson(v.payload) & "}"
+    s.add "\"payload\":" & $toJson(v.payload) & "}"
 
-proc dumpHook*(s : var string, v : SignTransaction) =
+    return parseJson(s)
+
+proc toJsonHook*(v : SignedTransaction) : JsonNode =
     
-    s.add "{\"chain_id\":\"" & $v.chain_id & "\","
+    var s = "{\"chain_id\":\"" & $v.chain_id & "\","
     s.add "\"sender\":\"" & v.sender & "\","
     s.add "\"sequence_number\":\"" & v.sequence_number & "\","
     s.add "\"max_gas_amount\":\"" & v.max_gas_amount & "\","
     s.add "\"gas_unit_price\":\"" & v.gas_unit_price & "\","
     s.add "\"expiration_timestamp_secs\":\"" & v.expiration_timestamp_secs & "\","
-    s.add "\"payload\":" & jsony.toJson(v.payload) & ","
-    s.add "\"signature\":" & jsony.toJson(v.signature) & "}"
+    s.add "\"payload\":" & $toJson(v.payload) & ","
+    s.add "\"signature\":" & $toJsonHook(v.authenticator) & "}"
 
-proc dumpHook*(s : var string, v : SubmittedTransaction) =
+    return parseJson(s)
+
+proc toJsonHook*(v : SubmittedTransaction) : JsonNode =
     
-    s.add "{\"hash\":\"" & v.hash & "\","
+    var s = "{\"hash\":\"" & v.hash & "\","
     s.add "\"sender\":\"" & v.sender & "\","
     s.add "\"sequence_number\":\"" & v.sequence_number & "\","
     s.add "\"max_gas_amount\":\"" & v.max_gas_amount & "\","
     s.add "\"gas_unit_price\":\"" & v.gas_unit_price & "\","
     s.add "\"expiration_timestamp_secs\":\"" & v.expiration_timestamp_secs & "\","
-    s.add "\"payload\":" & jsony.toJson(v.payload) & ","
-    s.add "\"signature\":" & jsony.toJson(v.signature) & "}"
+    s.add "\"payload\":" & $toJson(v.payload) & ","
+    s.add "\"signature\":" & $toJsonHook(v.authenticator) & "}"
 
-proc dumpHook*(s : var string, v : MultiAgentRawTransaction) =
+    return parseJson(s)
+
+proc toJsonHook*(v : MultiAgentRawTransaction) : JsonNode =
     
-    s.add "{\"chain_id\":\"" & $v.chain_id & "\","
+    var s = "{\"chain_id\":\"" & $v.chain_id & "\","
     s.add "\"sender\":\"" & v.sender & "\","
     s.add "\"sequence_number\":\"" & v.sequence_number & "\","
     s.add "\"max_gas_amount\":\"" & v.max_gas_amount & "\","
     s.add "\"gas_unit_price\":\"" & v.gas_unit_price & "\","
     s.add "\"expiration_timestamp_secs\":\"" & v.expiration_timestamp_secs & "\","
-    s.add "\"payload\":" & jsony.toJson(v.payload) & "," 
-    s.add "\"secondary_signers\":" & jsony.toJson(v.secondary_signers) & "}"
+    s.add "\"payload\":" & $toJson(v.payload) & "," 
+    s.add "\"secondary_signers\":" & $toJson(v.secondary_signers) & "}"
 
-proc `$`*(data : RawTransaction) : string = jsony.toJson(data)
+    return parseJson(s)
 
-proc `$`*(data : SignTransaction) : string = jsony.toJson(data)
+proc `$`*(data : RawTransaction) : string = $toJson(data)
 
-proc `$`*(data : MultiAgentRawTransaction) : string = jsony.toJson(data)
+proc `$`*(data : SignedTransaction) : string = $toJson(data)
 
-proc `$`*(data : SubmittedTransaction) : string = jsony.toJson(data)
+proc `$`*(data : MultiAgentRawTransaction) : string = $toJson(data)
 
-proc toSignTransaction*[T : TransactionPayload](txn : RawTransaction[T] | MultiAgentRawTransaction[T]) : SignTransaction[T] =
+proc `$`*(data : SubmittedTransaction) : string = $toJson(data)
 
-    result = SignTransaction[T](
-        chain_id : txn.chain_id,
-        sender : txn.sender, 
-        sequence_number : txn.sequence_number, 
-        max_gas_amount : txn.max_gas_amount, 
-        gas_unit_price : txn.gas_unit_price, 
-        expiration_timestamp_secs : txn.expiration_timestamp_secs,
-        payload : txn.payload
-    )
-
-proc toMultiAgentRawTransaction*[T : TransactionPayload](txn : RawTransaction[T] | SignTransaction[T]) : MultiAgentRawTransaction[T] =
-
-    result = MultiAgentRawTransaction[T](
-        chain_id : txn.chain_id,
-        sender : txn.sender, 
-        sequence_number : txn.sequence_number, 
-        max_gas_amount : txn.max_gas_amount, 
-        gas_unit_price : txn.gas_unit_price, 
-        expiration_timestamp_secs : txn.expiration_timestamp_secs,
-        payload : txn.payload
-    )
 
