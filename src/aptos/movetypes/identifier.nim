@@ -16,7 +16,7 @@ type
 
 proc `$`*(data : Identifier) : string = data.value
 
-proc newIdentifier*(data : string) : Identifier = Identifier(value : data)
+proc initIdentifier*(data : string) : Identifier = Identifier(value : data)
 
 proc serialize*(data : Identifier) : HexString = serializeStr(data.value)
 

@@ -8,11 +8,11 @@
 
 {.experimental: "codeReordering".}
 
-import std / [json]
+import std / [json, jsonutils]
 from std / strutils import parseBiggestUInt, toHex, isEmptyOrWhitespace
 from std / strformat import fmt
 
-import pkg / [bcs, jsony]
+import pkg / [bcs]
 import address
 
 from ../errors import NotImplemented
@@ -64,7 +64,7 @@ type
         of Hex:
 
             hex_arg : HexString
-            data : string ## json serialization for data of hex, for seq and string
+            data : JsonNode ## json serialization for data of hex, for seq and string
 
         of Bool:
 
@@ -105,7 +105,7 @@ type
         of Hex:
 
             hex_arg : HexString
-            data : string ## json serialization for data of hex, for seq and string
+            data : JsonNode ## json serialization for data of hex, for seq and string
 
         of Bool:
 
@@ -152,106 +152,6 @@ template variant(data : ArgumentsBase) : untyped =
     else:
 
         raise newException(NotImplemented, "variant not implemented for " & $typeof(data))
-
-proc baseSerializeScriptArg(data : ArgumentsBase) : HexString =
-    
-    result.add serialize[uint8](uint8(variant(data)))
-    when data is HexString:
-        
-        ## serialize as bytes
-        for val in serializeUleb128(uint32(len(data) / 2)):
-
-            result.add serialize[uint8](val)
-        
-        result.add data
-
-    elif data is Address:
-
-        result.add address.serialize(data)
-
-    else:
-
-        result.add bcs.serialize[typeof(data)](data)
-
-proc baseSerializeEntryArg(data : ArgumentsBase, asByte : bool = true) : HexString =
-    
-    var hex : HexString
-    when data is HexString:
-        
-        ## serialize as bytes
-        for val in serializeUleb128(uint32(len(data) / 2)):
-
-            hex.add serialize[uint8](val)
-
-        hex.add data
-
-    elif data is Address:
-
-        hex.add address.serialize(data)
-
-    else:
-
-        hex.add bcs.serialize[typeof(data)](data)
-    
-    if asByte:
-
-        for val in serializeUleb128(uint32(len(hex) / 2)):
-
-            result.add serialize[uint8](val)
-
-    result.add hex
-
-template baseDeSerializeScriptArg(data : var HexString, customcode : untyped) : untyped =
-
-    var variant = bcs.deSerialize[uint8](data)
-    if variant == 0:
-
-        var base {.inject.} = bcs.deSerialize[uint8](data)
-        customcode
-
-    elif variant == 1:
-
-        var base {.inject.} = bcs.deSerialize[uint64](data)
-        customcode
-
-    elif variant == 2:
-
-        var base {.inject.} = bcs.deSerialize[uint128](data)
-        customcode
-
-    elif variant == 3:
-
-        var base {.inject.} = address.deSerialize(data)
-        customcode
-
-    elif variant == 4:
-
-        var base {.inject.} = bcs.deSerialize[string](data) ## implement code to properly deserialize hex string
-        customcode
-
-    elif variant == 5:
-
-        var base {.inject.} = bcs.deSerialize[bool](data)
-        customcode
-
-    elif variant == 6:
-
-        var base {.inject.} = bcs.deSerialize[uint16](data)
-        customcode
-
-    elif variant == 7:
-
-        var base {.inject.} = bcs.deSerialize[uint32](data)
-        customcode
-
-    elif variant == 8:
-
-        var base {.inject.} = bcs.deSerialize[uint256](data)
-        customcode
-
-    else:
-
-        raise newException(ValueError, "Invalid variant from bcs")
 
 converter sArg*(data : ArgumentsBase) : ScriptArguments =
 
@@ -337,34 +237,6 @@ converter eArg*(data : ArgumentsBase) : EntryArguments =
 
         {.fatal : $typeof(data) & " is not supported for entry function arguments".}
 
-converter extendedSArg*[T : seq[ScriptArguments] | seq[seq] | string](data : T) : ScriptArguments =
-
-    when T is string:
-
-        return ScriptArguments(`type` : Hex, hex_arg : fromString(toHex(data)), data : "\"" & data & "\"")
-
-    elif T is seq:
-
-        return ScriptArguments(`type` : Hex, hex_arg : fromSeq(data), data : jsony.toJson(data))
-
-    else:
-
-        {.fatal : $typeof(data) & " is not supported as extended script argument".}
-
-converter extendedEArg*[T : seq[EntryArguments] | seq[seq] | string](data : T) : EntryArguments =
-
-    when T is string:
-
-        return EntryArguments(`type` : Hex, hex_arg : fromString(toHex(data)), data : "\"" & data & "\"")
-
-    elif T is seq:
-        
-        return EntryArguments(`type` : Hex, hex_arg : fromSeq(data), data : jsony.toJson(data))
-
-    else:
-
-        {.fatal : $typeof(data) & " is not supported as extended entry function argument".}
-
 template toBase*(data : ScriptArguments | EntryArguments, custom : untyped) : untyped {.dirty.} =
     
     case data.`type`
@@ -414,27 +286,123 @@ template toBase*(data : ScriptArguments | EntryArguments, custom : untyped) : un
         let base = data.bool_arg
         custom
 
-proc serialize*(data : EntryArguments, asByte : bool = true) : HexString =
-    
-    toBase data:
+template baseDeSerializeScriptArg(data : var HexString, custom : untyped) : untyped =
 
-        return baseSerializeEntryArg(base, asByte)
+    var variant = bcs.deSerialize[uint8](data)
+    if variant == 0:
 
-#[proc deSerialize*(data : var HexString) : EntryArguments =
+        var base {.inject.} = bcs.deSerialize[uint8](data)
+        custom
 
-    raise newException(NotImplemented , "Not implemented yet")]#
+    elif variant == 1:
+
+        var base {.inject.} = bcs.deSerialize[uint64](data)
+        custom
+
+    elif variant == 2:
+
+        var base {.inject.} = bcs.deSerialize[uint128](data)
+        custom
+
+    elif variant == 3:
+
+        var base {.inject.} = address.deSerialize(data)
+        custom
+
+    elif variant == 4:
+
+        var base {.inject.} = bcs.deSerialize[HexString](data) ## TODO :: implement code to properly deserialize hex string
+        custom
+
+    elif variant == 5:
+
+        var base {.inject.} = bcs.deSerialize[bool](data)
+        custom
+
+    elif variant == 6:
+
+        var base {.inject.} = bcs.deSerialize[uint16](data)
+        custom
+
+    elif variant == 7:
+
+        var base {.inject.} = bcs.deSerialize[uint32](data)
+        custom
+
+    elif variant == 8:
+
+        var base {.inject.} = bcs.deSerialize[uint256](data)
+        custom
+
+    else:
+
+        raise newException(ValueError, "Invalid variant from bcs")
 
 proc serialize*(data : ScriptArguments) : HexString =
 
     toBase data:
 
-        return baseSerializeScriptArg(base)
+        result.add bcs.serialize[uint8](uint8(variant(base)))
+        when base is Address:
 
-proc deSerialize*(data : var HexString) : ScriptArguments =
+            result.add address.serialize(base)
 
-    baseDeSerializeScriptArg(data):
+        elif base is HexString:
+            
+            if isNil(data.data):
 
-        return sArg base
+                result.add bcs.serialize[HexString](base)
+
+            else:
+
+                result.add base
+
+        else:
+
+            result.add bcs.serialize[typeof(base)](base)
+
+proc serialize*(data : EntryArguments, asBytes : bool = true) : HexString =
+    
+    toBase data:
+        
+        var hex : HexString
+        when base is Address:
+
+            hex.add address.serialize(base)
+
+        elif base is HexString:
+            
+            if isNil(data.data): ## checks if is pure Hex
+
+                hex.add bcs.serialize[HexString](base)
+
+            else: ## if is hex gotten from string or seq
+
+                hex.add base
+
+        else:
+            
+            hex.add bcs.serialize[typeof(base)](base)
+        
+        if asBytes: ## false when used by extendedEArg
+            
+            for val in serializeUleb128(uint32(byteLen(hex))):
+                
+                result.add bcs.serialize[uint8](val)
+
+        result.add(hex)
+
+proc deSerialize*[T : ScriptArguments | EntryArguments](data : var HexString) : T =
+    
+    when T is ScriptArguments:
+
+        baseDeSerializeScriptArg(data):
+
+            return sArg base
+
+    elif T is EntryArguments:
+
+        raise newException(NotImplemented , "Not implemented yet")    
 
 proc fromSeq[T : seq[ScriptArguments] | seq[EntryArguments] | seq[seq]](data : T) : HexString = 
 
@@ -455,20 +423,126 @@ proc fromSeq[T : seq[ScriptArguments] | seq[EntryArguments] | seq[seq]](data : T
     else:
 
         for item in data:
+            
+            when item is ScriptArguments:
 
-            result.add serialize(item)
+                result.add serialize(item)
+
+            elif item is EntryArguments:
+
+                result.add serialize(item, false)
+
+proc toJsonHook*(v : ScriptArguments) : JsonNode =
+
+    toBase v:
+        
+        if v.`type` == Addr or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
+            ## uint8, uint16 and uint32 are serialized normally
+
+            return toJson(base)
+
+        elif v.`type` == Hex:
+            
+            if not isNil(v.data):
+
+                if v.data.kind == JNull:
+
+                    return toJson(base)
+
+                else:
+
+                    return v.data
+
+            else:
+
+                return toJson(base)
+
+        else:
+
+            return toJson($base)
+
+proc toJsonHook*(v : EntryArguments) : JsonNode =
+
+    toBase v:
+        
+        if v.`type` == Addr or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
+            
+            return toJson(base)
+
+        elif v.`type` == Hex:
+            
+            if not isNil(v.data):
+
+                if v.data.kind == JNull:
+
+                    return toJson(base)
+
+                else:
+
+                    return v.data
+
+            else:
+
+                return toJson(base)
+
+        else:
+
+            return toJson($base)
+
+proc toJsonHook(v : seq[ScriptArguments]) : JsonNode =
+
+    result = newJArray()
+    for each in v:
+
+        result.add toJsonHook(each)
+
+proc toJsonHook(v : seq[EntryArguments]) : JsonNode =
+
+    result = newJArray()
+    for each in v:
+
+        result.add toJsonHook(each)
+
+converter extendedSArg*[T : seq[ScriptArguments] | string](data : T) : ScriptArguments =
+    
+    #[when T is HexString:
+
+        return ScriptArguments(`type` : Hex, hex_arg : data, data : toJson($data))]#
+
+    when T is string:
+
+        return ScriptArguments(`type` : Hex, hex_arg : bcs.serializeStr(data), data : toJson(data))
+
+    elif T is seq:
+
+        return ScriptArguments(`type` : Hex, hex_arg : fromSeq(data), data : toJsonHook(data))
+
+    else:
+
+        {.fatal : $typeof(data) & " is not supported as extended script argument".}
+
+converter extendedEArg*[T : seq[EntryArguments] | string](data : T) : EntryArguments =
+    
+    when T is string:
+
+        return EntryArguments(`type` : Hex, hex_arg : bcs.serializeStr(data), data : toJson(data))
+
+    elif T is seq:
+        
+        return EntryArguments(`type` : Hex, hex_arg : fromSeq(data), data : toJsonHook(data))
+
+    else:
+
+        {.fatal : $typeof(data) & " is not supported as extended entry function argument".}
 
 ## TODO :: confirm if payload response is returned as string regardless of type
-proc parseHook*(s : string, i : var int, v : var ScriptArguments) =
+proc fromJsonHook*(v : var ScriptArguments, s : JsonNode) =
 
-    var jsonHook : JsonNode
-    parseHook(s, i, jsonHook)
-
-    case jsonHook.kind
+    case s.kind
 
     of JString:
 
-        let data = getStr(jsonHook)
+        let data = getStr(s)
         try:
 
             let idata = newUInt256 data
@@ -491,32 +565,41 @@ proc parseHook*(s : string, i : var int, v : var ScriptArguments) =
 
         else:
 
-            v = sArg newAddress(data)
+            v = sArg initAddress(data)
 
     of JInt:
 
-        let data = getInt(jsonHook)
+        let data = getInt(s)
         v = sArg uint32(data)
 
     of JBool:
 
-        let data = getBool(jsonHook)
+        let data = getBool(s)
         v = sArg data
+
+    of JArray:
+        
+        var data : seq[ScriptArguments]
+        for item in s:
+
+            var itemData : ScriptArguments
+            fromJsonHook(itemData, item)
+
+            data.add itemData
+
+        v = extendedSArg data
 
     else:
 
-        raise newException(ValueError, fmt"Invalid json type {jsonHook.kind} for ScriptArguments")
+        raise newException(ValueError, fmt"Invalid json type {s.kind} for ScriptArguments")
 
-proc parseHook*(s : string, i : var int, v : var EntryArguments) =
+proc fromJsonHook*(v : var EntryArguments, s : JsonNode) =
 
-    var jsonHook : JsonNode
-    parseHook(s, i, jsonHook)
-
-    case jsonHook.kind
+    case s.kind
 
     of JString:
 
-        let data = getStr(jsonHook)
+        let data = getStr(s)
         ## TODO :: improve json parsing for ScriptArguments and EntryArguments
         try:
 
@@ -540,68 +623,37 @@ proc parseHook*(s : string, i : var int, v : var EntryArguments) =
 
         else:
 
-            v = newAddress(data)
+            v = eArg initAddress(data)
 
     of JInt:
 
-        let data = getInt(jsonHook)
+        let data = getInt(s)
         v = eArg uint32(data) ## assumes that all integers are uint32
 
     of JBool:
 
-        let data = getBool(jsonHook)
+        let data = getBool(s)
         v = eArg data
+
+    of JArray:
+        
+        var data : seq[EntryArguments]
+        for item in s:
+
+            var itemData : EntryArguments
+            fromJsonHook(itemData, item)
+
+            data.add itemData
+
+        v = extendedEArg data
 
     else:
 
-        raise newException(ValueError, fmt"Invalid json type {jsonHook.kind} for EntryArguments")
-
-proc dumpHook*(s : var string, v : ScriptArguments) =
-
-    toBase v:
-        
-        if v.`type` == Addr or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
-            ## uint8, uint16 and uint32 are serialized normally
-
-            s = toJson(base)
-
-        elif v.`type` == Hex:
-
-            if v.data.isEmptyOrWhitespace():
-
-                s = toJson(base)
-
-            else:
-
-                s = v.data
-
-        else:
-
-            s = "\"" & toJson(base) & "\""
-
-proc dumpHook*(s : var string, v : EntryArguments) =
-
-    toBase v:
-        
-        if v.`type` == Addr or v.`type` == Bool or v.`type` == U8 or v.`type` == U16 or v.`type` == U32:
-
-            s = toJson(base)
-
-        elif v.`type` == Hex:
-
-            if v.data.isEmptyOrWhitespace():
-
-                s = toJson(base)
-
-            else:
-
-                s = v.data
-
-        else:
-
-            s = "\"" & toJson(base) & "\""
+        raise newException(ValueError, fmt"Invalid json type {s.kind} for EntryArguments")
 
 when isMainModule:
 
-    let data = @[eArg false, eArg true]
-    echo serialize(eArg data)
+    let data = extendedEArg @[extendedEArg @[eArg false, eArg true], extendedEArg @[eArg 2'u8, eArg false]]
+    echo toJson(data)
+    echo serialize(data)
+

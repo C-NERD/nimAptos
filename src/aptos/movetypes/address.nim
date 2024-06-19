@@ -6,10 +6,10 @@
 #
 ## implementation for move lang address type
 
+import std / [json]
 from std / strutils import removePrefix, align, HexDigits
-#from std / strformat import fmt
 
-import pkg / [bcs, jsony]
+import pkg / [bcs]
 
 type
 
@@ -43,7 +43,7 @@ proc isValidAddress*(data : string) : bool =
 
     return true
 
-proc newAddress*(data : string) : Address =
+proc initAddress*(data : string) : Address =
     ## data should be a valid hex string
     
     var data = data
@@ -62,8 +62,7 @@ proc serialize*(data : Address) : HexString =
 
 proc deSerialize*(data : var HexString) : Address =
     
-    let len = deSerializeUleb128(data)
-    result = newAddress($(data[0..63]))
+    result = initAddress($(data[0..63]))
     if len(data) > 64:
 
         data = data[64..^1]
@@ -72,12 +71,7 @@ proc deSerialize*(data : var HexString) : Address =
 
         data = fromString("")
 
-proc dumpHook*(s : var string, v : Address) = s.add("\"" & $v & "\"")
+proc toJsonHook*(v : Address) : JsonNode = %($v)
 
-proc parseHook*(s : string, i : var int, v : var Address) =
-
-    var str: string
-    parseHook(s, i, str)
-
-    v = newAddress(str)
+proc fromJsonHook*(v : var Address, s : JsonNode) = v = initAddress(getStr(s))
 

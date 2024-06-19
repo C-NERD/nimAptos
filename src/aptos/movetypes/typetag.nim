@@ -6,10 +6,13 @@
 #
 ## implementation for move lang typetags
 
+import std / [json, jsonutils]
 from std / re import match, find, re
 from std / strutils import strip, split
 from std / strformat import fmt
-import pkg / [bcs, jsony]
+
+import pkg / [bcs]
+
 import address, identifier
 
 type
@@ -133,9 +136,9 @@ proc deSerialize*(data : var HexString) : TypeTags =
 
         raise newException(ValueError, "Invalid variant " & $variant)
 
-proc parseHook*(s : string, i : var int, v : var TypeTags) =
+proc fromJsonHook*(v : var TypeTags, s : JsonNode) =
 
-    let s = s.strip()
+    let s = getStr(s).strip()
     if not match(s, re"^(bool|u8|u64|u128|address|signer|vector<.+>|0x[0-9a-zA-Z:_<, >]+)$"):
 
         raise newException(ValueError, "Invalid type tag " & s)
@@ -180,7 +183,7 @@ proc parseHook*(s : string, i : var int, v : var TypeTags) =
         
         let child = s[5..^1]
         v = TypeTags(`type` : Vector)
-        v.childtype[] = fromJson(child[1..^2], TypeTags)
+        v.childtype[] = jsonTo(%child[1..^2], TypeTags)
 
     elif match(s, re"^.*(::).*(::).*"): ## if it's a struct
         
@@ -201,23 +204,24 @@ proc parseHook*(s : string, i : var int, v : var TypeTags) =
         let parts = ogStruct.split("::")
         v = TypeTags(
             `type` : Struct,
-            address : newAddress(parts[0]),
-            module : newIdentifier(parts[1]),
-            name : newIdentifier(parts[2]),
+            address : initAddress(parts[0]),
+            module : initIdentifier(parts[1]),
+            name : initIdentifier(parts[2]),
             type_args : @[]
         )
         if len(structArgs) > 0:
 
             for arg in structArgs.split(","):
 
-                v.type_args.add fromJson(arg.strip(), TypeTags)
+                v.type_args.add jsonTo(%arg.strip(), TypeTags)
 
     else:
 
         raise newException(ValueError, "Invalid type tag " & s)
 
-proc dumpHook*(s : var string, v : TypeTags) =
-
+proc toJsonHook*(v : TypeTags) : JsonNode =
+    
+    var s : string
     case v.`type`
 
     of Bool:
@@ -258,26 +262,31 @@ proc dumpHook*(s : var string, v : TypeTags) =
 
     of Vector:
         
-        s = fmt"vector<toJson(v.childtype[])>"
+        s = fmt"vector<{getStr(toJson(v.childtype[]))}>"
 
     of Struct:
 
-        s = fmt"{v.address}::{v.module}::{v.name}<"
+        s = fmt"{v.address}::{v.module}::{v.name}"
         let argsLen = len(v.type_args)
         if argsLen != 0:
-
+            
+            s.add "<"
             for pos in 0..<argsLen:
 
-                s.add toJson(v.type_args[pos])
+                s.add getStr(toJson(v.type_args[pos]))
                 if pos != argsLen - 1:
 
                     s.add ", "
 
-        s.add ">"
+            s.add ">"
+
+    return %s
+
+proc initTypeTag*(data : string) : TypeTags = jsonTo(%data, TypeTags)
 
 when isMainModule:
     
-    let struct = fromJson("0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>", TypeTags)
+    let struct = jsonTo(%"0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>", TypeTags)
     echo toJson(struct)
     echo serialize(struct)
 
