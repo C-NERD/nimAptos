@@ -99,7 +99,8 @@ proc createToken*(account: RefAptosAccount | RefMultiSigAccount,
     ## pos 3 : token royalty
     ## pos 4 : token description
     ## pos 5 : token property
-    ## pos 6 : token property_value
+    ## pos 6 : token property_value NOTE :: this is currently not accounted for in token_mutability param as I did not see it in the declared struct on the smart contract
+    ## but it was declared as a const. So keep in mind
     ## These are from the consts defined in the 0x3::token smart contract
 
     discard parseUri(uri) ## should throw error on invalid uri
@@ -131,7 +132,7 @@ proc createToken*(account: RefAptosAccount | RefMultiSigAccount,
 
 proc offerToken*(account: RefAptosAccount | RefMultiSigAccount,
         client: AptosClient, recipient, creator: Address,
-    collection, token: string, property_version: uint64, amount: float,
+    collection, token: string, property_version: uint64, amount: uint64,
             max_gas_amount = -1; gas_price = -1;
     txn_duration: int64 = -1): Future[SubmittedTransaction[
             EntryFunctionPayload]] {.async.} =
@@ -143,8 +144,7 @@ proc offerToken*(account: RefAptosAccount | RefMultiSigAccount,
         type_arguments: @[],
         arguments: @[
             eArg recipient, eArg creator, extendedEArg collection,
-            extendedEArg token, eArg property_version, eArg uint64(
-                    amount.toOcta())
+            extendedEArg token, eArg property_version, eArg amount
         ]
     )
     result = transact[EntryFunctionPayload](account, client, payload,
@@ -171,7 +171,7 @@ proc claimToken*(account: RefAptosAccount | RefMultiSigAccount,
 proc directTransferToken*(sender, recipient: RefAptosAccount |
         RefMultiSigAccount, client: AptosClient,
     creator: Address, collection, token: string, property_version: uint64,
-            amount: float, max_gas_amount = -1; gas_price = -1;
+            amount: uint64, max_gas_amount = -1; gas_price = -1;
     txn_duration: int64 = -1): Future[SubmittedTransaction[
             EntryFunctionPayload]] {.async.} =
 
@@ -191,7 +191,7 @@ proc directTransferToken*(sender, recipient: RefAptosAccount |
         function: "direct_transfer_script",
         type_arguments: @[],
         arguments: @[eArg creator, extendedEArg collection, extendedEArg token,
-                eArg property_version, eArg uint64(amount.toOcta())]
+                eArg property_version, eArg amount]
     )
     result = multiAgentTransact[EntryFunctionPayload](sender, singleSigners,
             multiSigners, client, payload, max_gas_amount, gas_price, txn_duration)
