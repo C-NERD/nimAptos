@@ -27,11 +27,11 @@ let
         getEnv("APTOS_ADDRESS4"),
         getEnv("APTOS_SEED4")
     )
-    multiSigAcct = waitFor createMultiSigAccount(client, @[account3, account2, account1, account4], 2)
+    multiSigAcct = waitFor createMultiSigAccount(client, @[account1, account2, account3, account4], 2)
 
-#[info "funding account1 ..."
+info "funding account1 ..."
 let faucetTxn1 = waitFor faucetClient.faucetFund($account1.address, 1.toOcta())
-notice fmt"account1 funded at {faucetTxn1[0]}"]#
+notice fmt"account1 funded at {faucetTxn1[0]}"
 
 info "registering account on chain ..."
 let txn1 = waitFor account1.registerAccount(client, multiSigAcct)

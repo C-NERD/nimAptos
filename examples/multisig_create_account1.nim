@@ -29,9 +29,9 @@ let
     )
     singleSigAcct = waitFor createAccount(client)
 
-#[info "funding account1 ..."
+info "funding account1 ..."
 let faucetTxn1 = waitFor faucetClient.faucetFund($account1.address, 1.toOcta())
-notice fmt"account1 funded at {faucetTxn1[0]}"]#
+notice fmt"account1 funded at {faucetTxn1[0]}"
 
 info "registering account on chain ..."
 let txn1 = waitFor account1.registerAccount(client, singleSigAcct)

@@ -1,14 +1,9 @@
-## code to donate to my aptos address via custom contract
-## the contract is available here
-## NOTE :: this script automatically runs on the testnet
-## NOTE :: do not run this on the mainnet if you do not intend on donating
-
-{.define : debug.}
+## This example runs a move script from this project https://github.com/C-NERD/salesRecord.git
+{.define: debug.}
 
 import std / [asyncdispatch, logging]
-from std / os import getEnv
 from std / strformat import fmt
-from std / os import `/`, parentDir
+from std / os import `/`, parentDir, getEnv
 from std / strutils import toHex
 import aptos
 import aptos / sugars
@@ -17,37 +12,49 @@ let logger = newConsoleLogger(fmtStr = "[$levelname] -> ")
 addHandler(logger)
 
 const SCRIPT = block:
-    
+
     #[let file = open(parentDir(currentSourcePath()) / "movescripts/script.mv", fmRead)
     var script : seq[byte]
     discard file.readBytes(script, 0, file.getFileSize() - 1)
     file.flushFile()
     file.close()]#
-    
+
     #fromBytes(script) ## return hex of script
     var data = slurp(currentSourcePath().parentDir() / "movescripts/script.mv")
     data = toHex(data)
     data
 
-proc customTxn(account : RefAptosAccount, client : AptosClient, payload : ScriptPayload) : Future[SubmittedTransaction[ScriptPayload]] {.async.} =
+proc customTxn(account: RefAptosAccount, client: AptosClient,
+        payload: ScriptPayload): Future[SubmittedTransaction[
+        ScriptPayload]] {.async.} =
 
     return transact[ScriptPayload](account, client, payload, -1, -1, -1)
 
 info "running move script ..."
-let 
+let
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
     account1 = newAccount(
         getEnv("APTOS_ADDRESS1"),
         getEnv("APTOS_SEED1")
     )
     payload = ScriptPayload(
-        code : MoveScriptBytecode(
-           bytecode : Script 
-        ),
-        type_arguments : @[],
-        arguments : @[sArg initAddress(getEnv("APTOS_ADDRESS2"))]
-    )
+        code: MoveScriptBytecode(
+           bytecode: Script,
+           abi: MoveFunction(
+                name: "main",
+                visibility: "public",
+                is_entry: true,
+                is_view: false,
+                generic_type_params: @[],
+                params: @["&signer", "address"],
+                `return`: @[]
+        )
+    ),
+        type_arguments: @[],
+        arguments: @[sArg initAddress(getEnv("APTOS_ADDRESS2"))]
+    ) ## Only need to define MoveFunction because of requests are json requests
+      ## In the future with bcs requests, this will not be necessary
     txn = waitFor customTxn(account1, client, payload)
 
-notice fmt"succesfully ran movescript"
+notice fmt"succesfully ran movescript at {txn.hash}"
 client.close()
