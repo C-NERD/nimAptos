@@ -8,13 +8,17 @@ Or clone this repo and run `nimble install` in it's root directory
 
 ## Examples
 check `./examples`
+or `./src/aptos.nim`
+or `./src/aptos/sugars.nim`
 you'll be required to set enviromental variables in order to properly run the examples.
-The variables can be found in the code of the examples
+The variables names can be found in the code of the examples
 
 ## RoadMap For Now
 - Code cleaning
 - Bug fixes
 - Improve module logging
+- Provide pragma for proc errors raised
+- Implement code to allow passing of more options to http client
 - Proper demarcation of vanila browser js compartable modules
 - Implement Bcs serialization and deSerialization for all sendable datatypes
 - Implement Bcs requests
