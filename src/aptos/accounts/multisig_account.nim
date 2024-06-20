@@ -254,7 +254,7 @@ proc createMultiSigAccount*(client : AptosClient, owners : seq[RefAptosAccount],
 template isTxnCapFull(account : RefMultiSigAccount) : untyped = 
 
     var full : bool = false
-    if (account.next_sequence_number - account.last_executed_sequence_number) > MAX_PENDING_TRANSACTIONS:
+    if (account.next_sequence_number - account.last_executed_sequence_number) < MAX_PENDING_TRANSACTIONS:
 
         full = true
 

@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## implementation of aptos publickey types
+
 ## std imports
 #import std / [jsonutils, json]
 from std / strutils import toHex, fromHex

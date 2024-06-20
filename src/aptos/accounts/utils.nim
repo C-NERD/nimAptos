@@ -31,7 +31,8 @@ type
         sequence_number*, guid_creation_num* : uint64
     
     RefAptosAccount* = ref object of AptosAccount
-
+        
+        privileges : bool ## false on a non privileged account
         seed, publicKey, privateKey : string
 
     RefMultiSigAccount* = ref object of AptosAccount
@@ -43,9 +44,17 @@ proc isValidSeed*(seed : string) : bool = match seed, re"^((0x)?)([A-z]|[0-9]){6
 
 proc isPriKey*(key : string) : bool = match key, re"^((0x)?)([A-z]|[0-9]){128}$"
 
-proc getPublicKey*(account : RefAptosAccount) : string = "0x" & account.publicKey
+#proc privileged*(account : RefAptosAccount) : bool = account.privileges
 
-proc getPrivateKey*(account : RefAptosAccount) : string = "0x" & account.privateKey
+proc getPublicKey*(account : RefAptosAccount) : string = 
+    
+    assert account.privileges, "non privileged accounts only have addresses"
+    "0x" & account.publicKey
+
+proc getPrivateKey*(account : RefAptosAccount) : string = 
+    
+    assert account.privileges, "non privileged accounts only have addresses"
+    "0x" & account.privateKey
 
 proc getPublicKey*(account : RefMultiSigAccount) : string = 
 
@@ -80,9 +89,17 @@ proc newAccount*(address, seed : string) :
     let keypair = getKeyPair(seed)
     return RefAptosAccount(
         address : initAddress(address),
+        privileges : true,
         publicKey : keypair.pubkey,
         privateKey : keypair.prvkey,
         seed : seed 
+    ) 
+
+proc newNonPrivilegedAccount*(address : string) : 
+    RefAptosAccount =
+    
+    return RefAptosAccount(
+        address : initAddress(address)
     ) 
 
 proc newMultiSigAccount*(accounts : seq[RefAptosAccount], address : string) : RefMultiSigAccount =

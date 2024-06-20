@@ -1,3 +1,11 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
+##
+## implementation of move typeinfo
+
 import pkg / [bcs]
 import address
 

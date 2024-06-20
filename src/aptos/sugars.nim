@@ -1,3 +1,8 @@
+#                    NimAptos
+#        (c) Copyright 2023 C-NERD
+#
+#      See the file "LICENSE", included in this
+#    distribution, for details about the copyright.
 ##
 ## This module implements syntatic sugars for building, signing and executing multiple
 ## transaction types
