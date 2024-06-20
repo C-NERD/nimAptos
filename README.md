@@ -13,6 +13,9 @@ or `./src/aptos/sugars.nim`
 you'll be required to set enviromental variables in order to properly run the examples.
 The variables names can be found in the code of the examples
 
+## Docs
+check out docs at [docs](https://rawcdn.githack.com/C-NERD/libDocs/3f86751a5840db24d6ab74ff87278eabb9998096/nimaptos_docs/aptos.html).
+
 ## RoadMap For Now
 - Code cleaning
 - Bug fixes
