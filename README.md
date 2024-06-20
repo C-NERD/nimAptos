@@ -1,6 +1,6 @@
 ## nimAptos
 aptos sdk for nimlang.
-check out the the aptos foundation github profile here
+check out the the aptos foundation github profile [here](https://github.com/aptos-labs)
 
 ## Installation
 `nimble install aptos`
