@@ -3,7 +3,7 @@ aptos sdk for nimlang.
 check out the the aptos foundation github profile here
 
 ## Installation
-`nimble install nimAptos`
+`nimble install aptos`
 Or clone this repo and run `nimble install` in it's root directory
 
 ## Examples
