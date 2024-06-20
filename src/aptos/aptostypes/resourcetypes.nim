@@ -25,7 +25,7 @@ type
     MoveFunction* = object
 
         name*, visibility* : string
-        is_entry* : bool
+        is_entry*, is_view* : bool
         generic_type_params* : seq[GenericParam]
         params* : seq[string]
         `return`* : seq[string]
