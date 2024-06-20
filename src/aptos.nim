@@ -6,11 +6,13 @@
 ##
 ## This module implements top level sugars for basic tasks on the aptos blockchain.
 ## It also exports all other modules of this library except the sugar module
+## To better understand the code implementations here, Pls glance through code in the aptosStdLib.
+## aptosStdLib can be found in modules of account `0x1` and `0x3` on the aptos blockchain
+## or in aptos-core git repo
 
 ## std imports
 import std / [asyncdispatch, json]
 from std / uri import parseUri, UriParseError
-#from std / strutils import toLowerAscii, toHex
 
 ## third party import
 import pkg / bcs
@@ -46,32 +48,61 @@ proc sendAptCoin*(account : RefAptosAccount | RefMultiSigAccount, client : Aptos
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
     
 proc createCollection*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, name, 
-    description, uri : string, max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
-    ## returns transaction 
+    description, uri : string, maximum : uint64, collection_mutability : array[3, bool], max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+    ## collection_mutability specifies which part of the collection is mutable;
+    ## pos 1 : collection description
+    ## pos 2 : collection uri
+    ## pos 3 : collection maximum
+    ## These are from the consts defined in the 0x3::token smart contract
     
     discard parseUri(uri) ## will raise UriParseError if not valid uri
+    let collectionMutability = block:
+
+        var mut : seq[EntryArguments]
+        for pos in 0..<len(collection_mutability):
+
+            mut.add eArg collection_mutability[pos]
+
+        mut
+
     let payload = EntryFunctionPayload(
         moduleid : newModuleId("0x3::token"),
         function : "create_collection_script",
         type_arguments : @[],
-        arguments : @[extendedEArg name, extendedEArg description, extendedEArg uri, eArg high(uint64), extendedEArg(@[eArg false, eArg false, eArg false])]
+        arguments : @[extendedEArg name, extendedEArg description, extendedEArg uri, eArg maximum, extendedEArg collectionMutability]
     )
     result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
 proc createToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, collection, name, 
-    description, uri : string, supply, royalty_pts_per_million : uint64, max_gas_amount = -1; gas_price = -1;
+    description, uri : string, balance, maximum, royalty_pts_denominator, royalty_pts_numerator : uint64, token_mutability : array[5, bool], max_gas_amount = -1; gas_price = -1;
     txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
-    ## returns transaction
+    ## token_mutability specifies which part of the token is mutable;
+    ## pos 1 : token maximum
+    ## pos 2 : token uri
+    ## pos 3 : token royalty
+    ## pos 4 : token description
+    ## pos 5 : token property
+    ## pos 6 : token property_value
+    ## These are from the consts defined in the 0x3::token smart contract
     
-    discard parseUri(uri)
+    discard parseUri(uri) ## should throw error on invalid uri
     let empty : seq[EntryArguments] = @[]
+    let tokenMutability = block:
+
+        var mut : seq[EntryArguments]
+        for pos in 0..<len(token_mutability):
+
+            mut.add eArg token_mutability[pos]
+
+        mut
+
     let payload = EntryFunctionPayload(
         moduleid : newModuleId("0x3::token"),
         function : "create_token_script",
         type_arguments : @[],
         arguments : @[
-            extendedEArg collection, extendedEArg name, extendedEArg description, eArg supply, eArg supply, extendedEArg uri, eArg account.address, 
-            eArg uint64(1000000), eArg royalty_pts_per_million, extendedEArg(@[eArg false, eArg false, eArg false, eArg false, eArg false]),
+            extendedEArg collection, extendedEArg name, extendedEArg description, eArg balance, eArg maximum, extendedEArg uri, eArg account.address, 
+            eArg royalty_pts_denominator, eArg royalty_pts_numerator, extendedEArg tokenMutability,
             extendedEArg(empty), extendedEArg(empty), extendedEArg(empty)
         ]
     )
