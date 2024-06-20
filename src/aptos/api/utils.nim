@@ -12,12 +12,12 @@ from std / strutils import split, parseInt
 from std / jsonutils import toJson
 from std / json import `$`, JsonNode
 
-export split, parseInt, `/`, encodeQuery 
+export split, parseInt, `/`, encodeQuery
 
 when defined(debug):
 
     import logging
-    export logging        
+    export logging
 
 when not defined(js):
 
@@ -36,26 +36,27 @@ type
     ApiError* = object of HttpRequestError
 
     BaseClient = ref object of RootObj
- 
-        baseUrl : Uri
+
+        baseUrl: Uri
         when not defined(js):
 
-            client {.guard : clientLock.} : AsyncHttpClient
-            clientLock : Lock
+            client {.guard: clientLock.}: AsyncHttpClient
+            clientLock: Lock
 
     AptosClient* = ref object of BaseClient
 
-        nodeInfo : LedgerInfo
+        nodeInfo: LedgerInfo
 
     FaucetClient* = ref object of BaseClient
 
-template callNode*(client : BaseClient, path : string, `method` : HttpMethod, params : seq[(string, string)], 
-    payload : tuple | object | ref object | seq | JsonNode, callback : untyped) =
+template callNode*(client: BaseClient, path: string, `method`: HttpMethod,
+        params: seq[(string, string)],
+    payload: tuple | object | ref object | seq | JsonNode, callback: untyped) =
 
     var endpoint = client.baseUrl / path
     endpoint.query = encodeQuery(params)
     when defined(debug):
-        
+
         let logHeader = "[" & $`method` & "] :: " & $endpoint
         info(logHeader)
         {.cast(gcsafe).}:
@@ -64,22 +65,23 @@ template callNode*(client : BaseClient, path : string, `method` : HttpMethod, pa
 
     when not defined(js):
 
-        var 
-            response {.inject.} : AsyncResponse = nil
-            headers = newHttpHeaders(@[(key : "Accept", val : "application/json")]) 
+        var
+            response {.inject.}: AsyncResponse = nil
+            headers = newHttpHeaders(@[(key: "Accept",
+                    val: "application/json")])
 
         when defined(debug):
-        
+
             info(logHeader & "\n" & $headers)
-        
-        var jPayload : string
+
+        var jPayload: string
         if `method` == HttpPost:
 
             headers.add "Content-Type", "application/json"
             withLock client.clientLock:
-                
+
                 when payload is not JsonNode:
-                    
+
                     {.cast(gcsafe).}:
 
                         jPayload = $toJson(payload)
@@ -87,12 +89,12 @@ template callNode*(client : BaseClient, path : string, `method` : HttpMethod, pa
                 else:
 
                     jPayload = $payload
-        
+
         withLock client.clientLock:
 
             response = await client.client.request(endpoint, `method`, jPayload, headers)
 
-        let 
+        let
             respBody {.inject.} = await response.body()
             respCode = response.status.split()[0].parseInt()
 
@@ -102,23 +104,23 @@ template callNode*(client : BaseClient, path : string, `method` : HttpMethod, pa
 
     else:
 
-        var 
-            respBody {.inject.} : string
+        var
+            respBody {.inject.}: string
             req = newRequest(($endpoint).cstring)
             headers = newHeaders()
-        
+
         headers["Accept"] = "application/json"
         if `method` == HttpPost:
 
             headers["Content-Type"] = "application/json"
- 
+
         when defined(debug):
-        
+
             info(logHeader & "\n" & $headers)
 
         req.headers = headers
         when payload is not JsonNode:
-            
+
             {.cast(gcsafe).}:
 
                 let jPayload = $toJson(payload)
@@ -127,29 +129,30 @@ template callNode*(client : BaseClient, path : string, `method` : HttpMethod, pa
 
             let jPayload = $payload
 
-        fetch(req, newfetchOptions(`method`, jPayload, fmCors, fcInclude, fchDefault, frpNoReferrer, true))
-            .then(proc(resp : Response) =
+        fetch(req, newfetchOptions(`method`, jPayload, fmCors, fcInclude,
+                fchDefault, frpNoReferrer, true))
+            .then(proc(resp: Response) =
 
                 respBody = $resp.body
                 if not resp.ok:
 
                     raise newException(ApiError, respBody)
-            , proc(err : Error) =
+            , proc(err: Error) =
 
                 raise newException(ApiError, err.name & " :: " & err.message)
             )
-    
+
     when defined(debug):
-        
+
         debug(logHeader & "\n" & respBody)
 
     callback
 
-proc newPrimitiveAptosClient*(nodeUrl : string) : AptosClient =
+proc newPrimitiveAptosClient*(nodeUrl: string): AptosClient =
 
     new(result)
     when not defined(js):
-        
+
         initLock(result.clientLock)
         withLock result.clientLock:
 
@@ -157,11 +160,11 @@ proc newPrimitiveAptosClient*(nodeUrl : string) : AptosClient =
 
     result.baseUrl = parseUri(nodeUrl)
 
-proc newFaucetClient*(nodeUrl : string) : FaucetClient =
+proc newFaucetClient*(nodeUrl: string): FaucetClient =
 
     new(result)
     when not defined(js):
-        
+
         initLock(result.clientLock)
         withLock result.clientLock:
 
@@ -169,16 +172,16 @@ proc newFaucetClient*(nodeUrl : string) : FaucetClient =
 
     result.baseUrl = parseUri(nodeUrl)
 
-func getNodeInfo*(client : AptosClient) : LedgerInfo = 
+func getNodeInfo*(client: AptosClient): LedgerInfo =
 
     return client.nodeInfo
 
-func setNodeInfo*(client : AptosClient, info : LedgerInfo) = 
+func setNodeInfo*(client: AptosClient, info: LedgerInfo) =
 
     client.nodeInfo = info
 
-proc close*(client : BaseClient) =
-    
+proc close*(client: BaseClient) =
+
     when not defined(js):
 
         if client.isNil():

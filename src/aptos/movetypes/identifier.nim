@@ -9,15 +9,16 @@
 import pkg / [bcs]
 
 type
-    
+
     Identifier* = object
 
-        value : string
+        value: string
 
-proc `$`*(data : Identifier) : string = data.value
+proc `$`*(data: Identifier): string = data.value
 
-proc initIdentifier*(data : string) : Identifier = Identifier(value : data)
+proc initIdentifier*(data: string): Identifier = Identifier(value: data)
 
-proc serialize*(data : Identifier) : HexString = serializeStr(data.value)
+proc serialize*(data: Identifier): HexString = serializeStr(data.value)
 
-proc deSerialize*(data : var HexString): Identifier = Identifier(value : deSerializeStr(data))
+proc deSerialize*(data: var HexString): Identifier = Identifier(
+        value: deSerializeStr(data))

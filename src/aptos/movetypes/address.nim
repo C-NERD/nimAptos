@@ -15,7 +15,7 @@ type
 
     Address* = array[64, char]
 
-func `$`*(x : Address) : string =
+func `$`*(x: Address): string =
 
     for each in x:
 
@@ -23,17 +23,17 @@ func `$`*(x : Address) : string =
 
     result = "0x" & result
 
-proc isValidAddress*(data : string) : bool =
+proc isValidAddress*(data: string): bool =
 
     let dataLen = len(data)
     if dataLen > 2 and (dataLen mod 2) != 0:
-        
-        return false 
+
+        return false
 
     elif dataLen > 64: ## address should not be more than string size 32 and hex size 64
-        
+
         return false
-    
+
     ## verify that address is valid hex
     for each in data:
 
@@ -43,25 +43,25 @@ proc isValidAddress*(data : string) : bool =
 
     return true
 
-proc initAddress*(data : string) : Address =
+proc initAddress*(data: string): Address =
     ## data should be a valid hex string
-    
+
     var data = data
     removePrefix(data, "0x")
 
     assert isValidAddress(data), "Invalid address " & data
-    
+
     data = align(data, 64, '0')
     for pos in 0..<len(result):
 
         result[pos] = data[pos]
 
-proc serialize*(data : Address) : HexString =
-    
+proc serialize*(data: Address): HexString =
+
     result.add fromString($data)
 
-proc deSerialize*(data : var HexString) : Address =
-    
+proc deSerialize*(data: var HexString): Address =
+
     result = initAddress($(data[0..63]))
     if len(data) > 64:
 
@@ -71,7 +71,7 @@ proc deSerialize*(data : var HexString) : Address =
 
         data = fromString("")
 
-proc toJsonHook*(v : Address) : JsonNode = %($v)
+proc toJsonHook*(v: Address): JsonNode = %($v)
 
-proc fromJsonHook*(v : var Address, s : JsonNode) = v = initAddress(getStr(s))
+proc fromJsonHook*(v: var Address, s: JsonNode) = v = initAddress(getStr(s))
 

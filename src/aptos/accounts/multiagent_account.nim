@@ -10,7 +10,7 @@ when defined(debug):
 
     import logging
 
-proc preHashMultiAgentTxn*() : string =
+proc preHashMultiAgentTxn*(): string =
 
     var ctx: SHA3
     let bcsTxn = "APTOS::RawTransactionWithData"
@@ -23,8 +23,10 @@ proc preHashMultiAgentTxn*() : string =
 
         debug(result)
 
-proc multiAgentSignTransaction*[T : TransactionPayload](sender_sig : Authenticator, secondary_signers : seq[Authenticator], 
-    signer_addrs : seq[Address], transaction : RawTransaction[T]) : SignedTransaction[T] =
+proc multiAgentSignTransaction*[T: TransactionPayload](
+    sender_sig: Authenticator, secondary_signers: seq[Authenticator],
+
+signer_addrs: seq[Address], transaction: RawTransaction[T]): SignedTransaction[T] =
 
     result = toSignedTransaction[T](transaction)
     result.authenticator = initAuthenticator(

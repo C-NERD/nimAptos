@@ -12,43 +12,43 @@ type
 
     GenericParam = object
 
-        constraints* : seq[string]
+        constraints*: seq[string]
 
     Struct* = object
 
-        name* : string
-        is_native* : bool
-        abilities* : seq[string]
-        generic_type_params* : seq[GenericParam]
-        fields* : seq[tuple[name, `type` : string]]
+        name*: string
+        is_native*: bool
+        abilities*: seq[string]
+        generic_type_params*: seq[GenericParam]
+        fields*: seq[tuple[name, `type`: string]]
 
     MoveFunction* = object
 
-        name*, visibility* : string
-        is_entry*, is_view* : bool
-        generic_type_params* : seq[GenericParam]
-        params* : seq[string]
-        `return`* : seq[string]
+        name*, visibility*: string
+        is_entry*, is_view*: bool
+        generic_type_params*: seq[GenericParam]
+        params*: seq[string]
+        `return`*: seq[string]
 
     MoveModule* = object
 
-        address*, name* : string
-        friends* : seq[string]
-        exposed_functions* : seq[MoveFunction]
-        structs* : seq[Struct]
+        address*, name*: string
+        friends*: seq[string]
+        exposed_functions*: seq[MoveFunction]
+        structs*: seq[Struct]
 
     MoveModuleByteCode* = object
 
-        bytecode* : string
-        abi* : MoveModule
+        bytecode*: string
+        abi*: MoveModule
 
     MoveResource* = object
 
-        `type`* : string
-        data* : JsonNode
+        `type`*: string
+        data*: JsonNode
 
     MoveScriptBytecode* = object
 
-        bytecode* : string
-        abi* : MoveFunction
+        bytecode*: string
+        abi*: MoveFunction
 

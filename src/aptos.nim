@@ -23,42 +23,52 @@ import aptos / accounts / [account]
 import aptos / utils as aptosutils
 import aptos / api / [aptosclient, faucetclient, utils, nodetypes]
 import aptos / aptostypes / [resourcetypes, transaction]
-import aptos / movetypes / [address, arguments, multisig_creation_message, rotation_challenge, typeinfo]
+import aptos / movetypes / [address, arguments, multisig_creation_message,
+        rotation_challenge, typeinfo]
 import aptos / aptostypes / payload / [payload, moduleid]
 import aptos / aptostypes / authenticator / [authenticator, signature, publickey]
 
 ## project exports
-export account, resourcetypes, moduleid, payload, transaction, aptosclient, faucetclient, nodetypes, utils, aptosutils, bcs
+export account, resourcetypes, moduleid, payload, transaction, aptosclient,
+        faucetclient, nodetypes, utils, aptosutils, bcs
 export address, arguments, multisig_creation_message, rotation_challenge, typeinfo
 export authenticator, signature, publickey
 
-proc sendAptCoin*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, recipient : Address, 
-    amount : float, max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc sendAptCoin*(account: RefAptosAccount | RefMultiSigAccount,
+        client: AptosClient, recipient: Address,
+    amount: float, max_gas_amount = -1; gas_price = -1;
+            txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
     ## param amount: amount to send in aptos
     ## txn_duration : amount of time in seconds till transaction timeout
     ## if < 0 then the library will handle it
     ## returns transaction
-    
+
     let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x1::coin"),
-        function : "transfer",
-        type_arguments : @["0x1::aptos_coin::AptosCoin"],
-        arguments : @[eArg recipient, eArg (uint64(amount.toOcta()))]
+        moduleid: newModuleId("0x1::coin"),
+        function: "transfer",
+        type_arguments: @["0x1::aptos_coin::AptosCoin"],
+        arguments: @[eArg recipient, eArg (uint64(amount.toOcta()))]
     )
-    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
-    
-proc createCollection*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, name, 
-    description, uri : string, maximum : uint64, collection_mutability : array[3, bool], max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+    result = transact[EntryFunctionPayload](account, client, payload,
+            max_gas_amount, gas_price, txn_duration)
+
+proc createCollection*(account: RefAptosAccount | RefMultiSigAccount,
+        client: AptosClient, name,
+    description, uri: string, maximum: uint64, collection_mutability: array[3,
+            bool], max_gas_amount = -1; gas_price = -1;
+            txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
     ## collection_mutability specifies which part of the collection is mutable;
     ## pos 1 : collection description
     ## pos 2 : collection uri
     ## pos 3 : collection maximum
     ## These are from the consts defined in the 0x3::token smart contract
-    
+
     discard parseUri(uri) ## will raise UriParseError if not valid uri
     let collectionMutability = block:
 
-        var mut : seq[EntryArguments]
+        var mut: seq[EntryArguments]
         for pos in 0..<len(collection_mutability):
 
             mut.add eArg collection_mutability[pos]
@@ -66,16 +76,23 @@ proc createCollection*(account : RefAptosAccount | RefMultiSigAccount, client : 
         mut
 
     let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x3::token"),
-        function : "create_collection_script",
-        type_arguments : @[],
-        arguments : @[extendedEArg name, extendedEArg description, extendedEArg uri, eArg maximum, extendedEArg collectionMutability]
+        moduleid: newModuleId("0x3::token"),
+        function: "create_collection_script",
+        type_arguments: @[],
+        arguments: @[extendedEArg name, extendedEArg description,
+                extendedEArg uri, eArg maximum,
+                extendedEArg collectionMutability]
     )
-    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](account, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
-proc createToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, collection, name, 
-    description, uri : string, balance, maximum, royalty_pts_denominator, royalty_pts_numerator : uint64, token_mutability : array[5, bool], max_gas_amount = -1; gas_price = -1;
-    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc createToken*(account: RefAptosAccount | RefMultiSigAccount,
+        client: AptosClient, collection, name,
+    description, uri: string, balance, maximum, royalty_pts_denominator,
+            royalty_pts_numerator: uint64, token_mutability: array[5, bool],
+            max_gas_amount = -1; gas_price = -1;
+    txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
     ## token_mutability specifies which part of the token is mutable;
     ## pos 1 : token maximum
     ## pos 2 : token uri
@@ -84,12 +101,12 @@ proc createToken*(account : RefAptosAccount | RefMultiSigAccount, client : Aptos
     ## pos 5 : token property
     ## pos 6 : token property_value
     ## These are from the consts defined in the 0x3::token smart contract
-    
+
     discard parseUri(uri) ## should throw error on invalid uri
-    let empty : seq[EntryArguments] = @[]
+    let empty: seq[EntryArguments] = @[]
     let tokenMutability = block:
 
-        var mut : seq[EntryArguments]
+        var mut: seq[EntryArguments]
         for pos in 0..<len(token_mutability):
 
             mut.add eArg token_mutability[pos]
@@ -97,52 +114,70 @@ proc createToken*(account : RefAptosAccount | RefMultiSigAccount, client : Aptos
         mut
 
     let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x3::token"),
-        function : "create_token_script",
-        type_arguments : @[],
-        arguments : @[
-            extendedEArg collection, extendedEArg name, extendedEArg description, eArg balance, eArg maximum, extendedEArg uri, eArg account.address, 
-            eArg royalty_pts_denominator, eArg royalty_pts_numerator, extendedEArg tokenMutability,
+        moduleid: newModuleId("0x3::token"),
+        function: "create_token_script",
+        type_arguments: @[],
+        arguments: @[
+            extendedEArg collection, extendedEArg name,
+            extendedEArg description, eArg balance, eArg maximum,
+            extendedEArg uri, eArg account.address,
+            eArg royalty_pts_denominator, eArg royalty_pts_numerator,
+            extendedEArg tokenMutability,
             extendedEArg(empty), extendedEArg(empty), extendedEArg(empty)
         ]
     )
-    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](account, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
-proc offerToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, recipient, creator : Address, 
-    collection, token : string, property_version : uint64, amount : float, max_gas_amount = -1; gas_price = -1;
-    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc offerToken*(account: RefAptosAccount | RefMultiSigAccount,
+        client: AptosClient, recipient, creator: Address,
+    collection, token: string, property_version: uint64, amount: float,
+            max_gas_amount = -1; gas_price = -1;
+    txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
     ## returns transaction
 
     let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x3::token_transfers"),
-        function : "offer_script",
-        type_arguments : @[],
-        arguments : @[
-            eArg recipient, eArg creator, extendedEArg collection, extendedEArg token, eArg property_version, eArg uint64(amount.toOcta())
+        moduleid: newModuleId("0x3::token_transfers"),
+        function: "offer_script",
+        type_arguments: @[],
+        arguments: @[
+            eArg recipient, eArg creator, extendedEArg collection,
+            extendedEArg token, eArg property_version, eArg uint64(
+                    amount.toOcta())
         ]
     )
-    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](account, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
-proc claimToken*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, sender, creator : Address,
-    collection, token : string, property_version : uint64, max_gas_amount = -1; gas_price = -1;
-    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc claimToken*(account: RefAptosAccount | RefMultiSigAccount,
+        client: AptosClient, sender, creator: Address,
+    collection, token: string, property_version: uint64, max_gas_amount = -1;
+            gas_price = -1;
+    txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
     ## returns transaction
 
     let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x3::token_transfers"),
-        function : "claim_script",
-        type_arguments : @[],
-        arguments : @[eArg sender, eArg creator, extendedEArg collection, extendedEArg token, eArg property_version]
+        moduleid: newModuleId("0x3::token_transfers"),
+        function: "claim_script",
+        type_arguments: @[],
+        arguments: @[eArg sender, eArg creator, extendedEArg collection,
+                extendedEArg token, eArg property_version]
     )
-    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](account, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
-proc directTransferToken*(sender, recipient : RefAptosAccount | RefMultiSigAccount, client : AptosClient, 
-    creator : Address, collection, token : string, property_version : uint64, amount : float, max_gas_amount = -1; gas_price = -1;
-    txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
-    
+proc directTransferToken*(sender, recipient: RefAptosAccount |
+        RefMultiSigAccount, client: AptosClient,
+    creator: Address, collection, token: string, property_version: uint64,
+            amount: float, max_gas_amount = -1; gas_price = -1;
+    txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
+
     var
-        singleSigners : seq[RefAptosAccount]
-        multiSigners : seq[RefMultiSigAccount]
+        singleSigners: seq[RefAptosAccount]
+        multiSigners: seq[RefMultiSigAccount]
     when recipient is RefAptosAccount:
 
         singleSigners = @[recipient]
@@ -152,24 +187,28 @@ proc directTransferToken*(sender, recipient : RefAptosAccount | RefMultiSigAccou
         multiSigners = @[recipient]
 
     let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x3::token"),
-        function : "direct_transfer_script",
-        type_arguments : @[],
-        arguments : @[eArg creator, extendedEArg collection, extendedEArg token, eArg property_version, eArg uint64(amount.toOcta())]
+        moduleid: newModuleId("0x3::token"),
+        function: "direct_transfer_script",
+        type_arguments: @[],
+        arguments: @[eArg creator, extendedEArg collection, extendedEArg token,
+                eArg property_version, eArg uint64(amount.toOcta())]
     )
-    result = multiAgentTransact[EntryFunctionPayload](sender, singleSigners, multiSigners, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = multiAgentTransact[EntryFunctionPayload](sender, singleSigners,
+            multiSigners, client, payload, max_gas_amount, gas_price, txn_duration)
 
-proc rotationProofChallenge*(accountForm1, accountForm2 : RefAptosAccount | RefMultiSigAccount, client : AptosClient,
-    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc rotationProofChallenge*(accountForm1, accountForm2: RefAptosAccount |
+        RefMultiSigAccount, client: AptosClient,
+    max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+            SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## rotation proof challenge
-    
+
     refresh(accountForm1, client)
     refresh(accountForm2, client)
 
-    var 
-        fromScheme, toScheme : uint8
-        sequenceNumber : uint64
-        originator, currentAuthKey : Address
+    var
+        fromScheme, toScheme: uint8
+        sequenceNumber: uint64
+        originator, currentAuthKey: Address
     when accountForm1 is RefAptosAccount:
 
         fromScheme = SINGLE_ED25519_SIG_ENUM
@@ -192,7 +231,7 @@ proc rotationProofChallenge*(accountForm1, accountForm2 : RefAptosAccount | RefM
 
         toScheme = MULTI_ED25519_SIG_ENUM
 
-    let 
+    let
         challenge = initRotationProofChallenge(
             sequenceNumber,
             originator,
@@ -206,19 +245,21 @@ proc rotationProofChallenge*(accountForm1, accountForm2 : RefAptosAccount | RefM
             "RotationProofChallenge",
             challenge
         )
-        serChallengeTypeInfo = serialize[RotationProofChallenge](challengeTypeInfo, rotation_challenge.serialize)
-    var capRotateKey, capUpdateTable : HexString
+        serChallengeTypeInfo = serialize[RotationProofChallenge](
+                challengeTypeInfo, rotation_challenge.serialize)
+    var capRotateKey, capUpdateTable: HexString
     when accountForm1 is RefAptosAccount:
 
-        let sig = accountForm1.signMsg($serChallengeTypeInfo) 
+        let sig = accountForm1.signMsg($serChallengeTypeInfo)
         capRotateKey = initSingleSignature(sig)
-        assert accountForm1.verifySignature($capRotateKey, $serChallengeTypeInfo), "unable to verify accountForm1 single signature"
+        assert accountForm1.verifySignature($capRotateKey,
+                $serChallengeTypeInfo), "unable to verify accountForm1 single signature"
 
     elif accountForm1 is RefMultiSigAccount:
-        
-        var 
-            singleSignatures : seq[SingleEd25519Signature]
-            positions : seq[int]
+
+        var
+            singleSignatures: seq[SingleEd25519Signature]
+            positions: seq[int]
         let signature = accountForm1.signMsg($serChallengeTypeInfo)
         assert accountForm1.verifySignature(signature, $serChallengeTypeInfo), "unable to verify accountForm1 multi signature"
         for sig in signature:
@@ -232,13 +273,14 @@ proc rotationProofChallenge*(accountForm1, accountForm2 : RefAptosAccount | RefM
 
         let sig2 = accountForm2.signMsg($serChallengeTypeInfo)
         capUpdateTable = initSingleSignature(sig2)
-        assert accountForm2.verifySignature($capUpdateTable, $serChallengeTypeInfo), "unable to verify accountForm2 single signature"
+        assert accountForm2.verifySignature($capUpdateTable,
+                $serChallengeTypeInfo), "unable to verify accountForm2 single signature"
 
     elif accountForm2 is RefMultiSigAccount:
 
-        var 
-            singleSignatures : seq[SingleEd25519Signature]
-            positions : seq[int]
+        var
+            singleSignatures: seq[SingleEd25519Signature]
+            positions: seq[int]
         let signature2 = accountForm2.signMsg($serChallengeTypeInfo)
         assert accountForm2.verifySignature(signature2, $serChallengeTypeInfo), "unable to verify accountForm2 multi signature"
         for sig in signature2:
@@ -250,55 +292,62 @@ proc rotationProofChallenge*(accountForm1, accountForm2 : RefAptosAccount | RefM
 
     let
         payload = EntryFunctionPayload(
-            moduleid : newModuleId("0x1::account"),
-            function : "rotate_authentication_key",
-            type_arguments : @[],
-            arguments : @[
+            moduleid: newModuleId("0x1::account"),
+            function: "rotate_authentication_key",
+            type_arguments: @[],
+            arguments: @[
                 eArg fromScheme, eArg fromString(accountForm1.getPublicKey()),
                 eArg toScheme, eArg fromString(accountForm2.getPublicKey()),
                 eArg capRotateKey, eArg capUpdateTable
             ]
         )
-    result = transact[EntryFunctionPayload](accountForm1, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](accountForm1, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
-proc registerAccount*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, new_account : RefAptosAccount | RefMultiSigAccount,
-    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc registerAccount*(account: RefAptosAccount | RefMultiSigAccount,
+        client: AptosClient, new_account: RefAptosAccount | RefMultiSigAccount,
+    max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+            SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## register address for new wallet
     ## returns transaction
-    
-    let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x1::aptos_account"),
-        function : "create_account",
-        type_arguments : @[],
-        arguments : @[eArg new_account.address]
-    )
-    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
 
-proc registerMultiSigAcctFromExistingAcct*(account : RefAptosAccount | RefMultiSigAccount, client : AptosClient, new_account : RefAptosAccount | RefMultiSigAccount,
-    owners : seq[RefAptosAccount], num_signatures_required : uint64,
-    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+    let payload = EntryFunctionPayload(
+        moduleid: newModuleId("0x1::aptos_account"),
+        function: "create_account",
+        type_arguments: @[],
+        arguments: @[eArg new_account.address]
+    )
+    result = transact[EntryFunctionPayload](account, client, payload,
+            max_gas_amount, gas_price, txn_duration)
+
+proc registerMultiSigAcctFromExistingAcct*(account: RefAptosAccount |
+        RefMultiSigAccount, client: AptosClient, new_account: RefAptosAccount |
+        RefMultiSigAccount,
+    owners: seq[RefAptosAccount], num_signatures_required: uint64,
+    max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+            SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## did not call refresh here cause it is assumed that new_account maybe an unregistered RefMultiSigAccount
     ## you may need to call refresh manually on this
-    
-    var 
-        empty : seq[EntryArguments]
-        ownersArg : seq[EntryArguments]
-        ownersAddr : seq[Address]
+
+    var
+        empty: seq[EntryArguments]
+        ownersArg: seq[EntryArguments]
+        ownersAddr: seq[Address]
     for owner in owners:
 
         ownersArg.add eArg owner.address
         ownersAddr.add owner.address
 
-    var sequenceNumber : uint64
+    var sequenceNumber: uint64
     when new_account is RefAptosAccount:
 
         sequenceNumber = new_account.sequence_number
-    
+
     elif new_account is RefMultiSigAccount:
 
         sequenceNumber = new_account.sequence_number #new_account.last_executed_sequence_number
 
-    let 
+    let
         creationMsg = initMultiSigCreationMessage(
             new_account.address,
             client,
@@ -313,52 +362,58 @@ proc registerMultiSigAcctFromExistingAcct*(account : RefAptosAccount | RefMultiS
             "MultisigAccountCreationMessage",
             creationMsg
         )
-        serCreationMsgTypeInfo = serialize[MultiSigCreationMessage](creationMsgTypeInfo, multisig_creation_message.serialize)
+        serCreationMsgTypeInfo = serialize[MultiSigCreationMessage](
+                creationMsgTypeInfo, multisig_creation_message.serialize)
         accountSig = signMsg(new_account, $serCreationMsgTypeInfo)
 
-    var payload : EntryFunctionPayload
+    var payload: EntryFunctionPayload
     when new_account is RefAptosAccount:
 
         payload = EntryFunctionPayload(
-            moduleid : newModuleId("0x1::multisig_account"),
-            function : "create_with_existing_account",
-            type_arguments : @[],
-            arguments : @[
-                eArg new_account.address, extendedEArg ownersArg, eArg num_signatures_required,
-                eArg SINGLE_ED25519_SIG_ENUM, eArg fromString(new_account.getPublicKey()), 
+            moduleid: newModuleId("0x1::multisig_account"),
+            function: "create_with_existing_account",
+            type_arguments: @[],
+            arguments: @[
+                eArg new_account.address, extendedEArg ownersArg,
+                eArg num_signatures_required,
+                eArg SINGLE_ED25519_SIG_ENUM, eArg fromString(
+                        new_account.getPublicKey()),
                 eArg initSingleSignature(fromString(accountSig)),
                 extendedEArg(empty), extendedEArg(empty)
             ]
         )
 
     elif new_account is RefMultiSigAccount:
-        
+
         var
-            signatures : seq[SingleEd25519Signature]
-            positions : seq[int]
+            signatures: seq[SingleEd25519Signature]
+            positions: seq[int]
         for sig in accountSig:
-            
+
             signatures.add fromString(sig.signature)
             positions.add sig.ownerpos
 
         let multiSignature = initMultiSignature(signatures, positions)
         payload = EntryFunctionPayload(
-            moduleid : newModuleId("0x1::multisig_account"),
-            function : "create_with_existing_account",
-            type_arguments : @[],
-            arguments : @[
-                eArg new_account.address, extendedEArg ownersArg, eArg num_signatures_required,
-                eArg MULTI_ED25519_SIG_ENUM, eArg fromString(new_account.getPublicKey()),
+            moduleid: newModuleId("0x1::multisig_account"),
+            function: "create_with_existing_account",
+            type_arguments: @[],
+            arguments: @[
+                eArg new_account.address, extendedEArg ownersArg,
+                eArg num_signatures_required,
+                eArg MULTI_ED25519_SIG_ENUM, eArg fromString(
+                        new_account.getPublicKey()),
                 eArg serialize(multiSignature),
                 extendedEArg(empty), extendedEArg(empty)
             ]
         )
-    result = transact[EntryFunctionPayload](account, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](account, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
 #[proc publishPackage*(account : RefAptosAccount | RefMultiSigAccount,  client : AptosClient, seed : string,
     package_meta : openArray[byte], modules : openArray[seq[byte]], max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1
 ) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
-    
+
     var modulesArg : seq[EntryArguments]
     for module in modules:
 
@@ -384,7 +439,7 @@ proc publishPackage*(package_path : string, account : RefAptosAccount | RefMulti
     proc readModules(build_path : string) : seq[seq[byte]] {.closure.} =
 
         discard
-    
+
     let
         meta : seq[byte] = readMeta("")
         modules : seq[seq[byte]] = readModules("")
@@ -392,31 +447,42 @@ proc publishPackage*(package_path : string, account : RefAptosAccount | RefMulti
     return account.publishPackage(client, meta, modules, max_gas_amount, gas_price, txn_duration)]#
 
 ## RefMultiSigAccount specific sugars
-proc multiSigSendAptCoin*(owner : RefAptosAccount, account : RefMultiSigAccount, client : AptosClient, recipient : Address, 
-    amount : float, max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc multiSigSendAptCoin*(owner: RefAptosAccount, account: RefMultiSigAccount,
+        client: AptosClient, recipient: Address,
+    amount: float, max_gas_amount = -1; gas_price = -1;
+            txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
     ## param amount: amount to send in aptos
     ## txn_duration : amount of time in seconds till transaction timeout
     ## if < 0 then the library will handle it
     ## returns transaction
-    
+
     var payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x1::coin"),
-        function : "transfer",
-        type_arguments : @["0x1::aptos_coin::AptosCoin"],
-        arguments : @[eArg recipient, eArg (uint64(amount.toOcta()))]
+        moduleid: newModuleId("0x1::coin"),
+        function: "transfer",
+        type_arguments: @["0x1::aptos_coin::AptosCoin"],
+        arguments: @[eArg recipient, eArg (uint64(amount.toOcta()))]
     )
     payload = createMultiSigTransaction(account, serializeEntryFunction(payload))
-    result = transact[EntryFunctionPayload](owner, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](owner, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
-proc multiSigTxnVote*(owner : RefAptosAccount, account : RefMultiSigAccount, client : AptosClient, sequenceNumber : uint64, 
-    vote : Vote, max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc multiSigTxnVote*(owner: RefAptosAccount, account: RefMultiSigAccount,
+        client: AptosClient, sequenceNumber: uint64,
+    vote: Vote, max_gas_amount = -1; gas_price = -1;
+            txn_duration: int64 = -1): Future[SubmittedTransaction[
+            EntryFunctionPayload]] {.async.} =
 
     let payload = voteOnTransaction(account, sequenceNumber, vote)
-    result = transact[EntryFunctionPayload](owner, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](owner, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 
-proc removeRejectedTxns*(owner : RefAptosAccount, account : RefMultiSigAccount, client : AptosClient, finalSequenceNumber : uint64, 
-    max_gas_amount = -1; gas_price = -1; txn_duration : int64 = -1) : Future[SubmittedTransaction[EntryFunctionPayload]] {.async.} =
+proc removeRejectedTxns*(owner: RefAptosAccount, account: RefMultiSigAccount,
+        client: AptosClient, finalSequenceNumber: uint64,
+    max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+            SubmittedTransaction[EntryFunctionPayload]] {.async.} =
 
     let payload = removeRejectedTransactions(account, finalSequenceNumber)
-    result = transact[EntryFunctionPayload](owner, client, payload, max_gas_amount, gas_price, txn_duration)
+    result = transact[EntryFunctionPayload](owner, client, payload,
+            max_gas_amount, gas_price, txn_duration)
 

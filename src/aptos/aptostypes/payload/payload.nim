@@ -23,31 +23,32 @@ type
 
     ModuleBundlePayload* = object
 
-        modules* : seq[MoveModule]  
+        modules*: seq[MoveModule]
 
     EntryFunctionPayload* = object
 
-        moduleid* : ModuleId
-        function* : string
-        type_arguments* : seq[string] ## seq of TypeTags 
-        arguments* : seq[EntryArguments] ## seq of EntryArguments
+        moduleid*: ModuleId
+        function*: string
+        type_arguments*: seq[string]    ## seq of TypeTags
+        arguments*: seq[EntryArguments] ## seq of EntryArguments
 
     ScriptPayload* = object
 
-        code* : MoveScriptBytecode
-        type_arguments* : seq[string] ## seq of TypeTags
-        arguments* : seq[ScriptArguments] ## seq of ScriptArguments
+        code*: MoveScriptBytecode
+        type_arguments*: seq[string]     ## seq of TypeTags
+        arguments*: seq[ScriptArguments] ## seq of ScriptArguments
 
     MultisigPayload* = object
 
-        multisig_address* : string
-        transaction_payload* : EntryFunctionPayload
+        multisig_address*: string
+        transaction_payload*: EntryFunctionPayload
 
     WriteSetPayload* = object
 
-        write_set* :  WriteSet   
+        write_set*: WriteSet
 
-template serialize*[T : ModuleBundlePayload | ScriptPayload | EntryFunctionPayload](data : T) : untyped =
+template serialize*[T: ModuleBundlePayload | ScriptPayload |
+        EntryFunctionPayload](data: T): untyped =
 
     when T is ModuleBundlePayload:
 
@@ -61,13 +62,13 @@ template serialize*[T : ModuleBundlePayload | ScriptPayload | EntryFunctionPaylo
 
         serializeEntryFunction(data)
 
-proc serializeEntryFunction*[T : EntryFunctionPayload](payload : T) : HexString =
-        
+proc serializeEntryFunction*[T: EntryFunctionPayload](payload: T): HexString =
+
     ## serialize payload variant
     for val in serializeUleb128(2'u32): ## variant 2
 
         result.add bcs.serialize[uint8](val)
-        
+
     ## serialize module id object
     result.add moduleid.serialize(payload.moduleid)
 
@@ -78,7 +79,7 @@ proc serializeEntryFunction*[T : EntryFunctionPayload](payload : T) : HexString 
     for val in serializeUleb128(uint32(len(payload.type_arguments))):
 
         result.add bcs.serialize[uint8](val)
-    
+
     for item in payload.type_arguments:
 
         result.add typetag.serialize(jsonTo(%item, TypeTags))
@@ -89,11 +90,11 @@ proc serializeEntryFunction*[T : EntryFunctionPayload](payload : T) : HexString 
         result.add bcs.serialize[uint8](val)
 
     for item in payload.arguments:
-        
+
         result.add arguments.serialize(item)
 
-proc serializeScriptPayload*[T : ScriptPayload](payload : T) : HexString =
-        
+proc serializeScriptPayload*[T: ScriptPayload](payload: T): HexString =
+
     ## serialize payload variant
     for val in serializeUleb128(0'u32): ## variant 0
 
@@ -103,11 +104,11 @@ proc serializeScriptPayload*[T : ScriptPayload](payload : T) : HexString =
     for val in serializeUleb128(uint32(len(payload.code.bytecode) / 2)):
 
         result.add bcs.serialize[uint8](val)
-    
+
     var bytecode = payload.code.bytecode
     removePrefix(bytecode, "0x")
     result.add bytecode
-    
+
     ## serialize type_arguments
     for val in serializeUleb128(uint32(len(payload.type_arguments))):
 
@@ -117,7 +118,7 @@ proc serializeScriptPayload*[T : ScriptPayload](payload : T) : HexString =
 
         result.add typetag.serialize(jsonTo(%item, TypeTags))
 
-    ## serializing arguments 
+    ## serializing arguments
     for val in serializeUleb128(uint32(len(payload.arguments))):
 
         result.add bcs.serialize[uint8](val)
@@ -126,7 +127,7 @@ proc serializeScriptPayload*[T : ScriptPayload](payload : T) : HexString =
 
         result.add arguments.serialize(item)
 
-proc serializeModulePayload*(payload : ModuleBundlePayload) : HexString =
+proc serializeModulePayload*(payload: ModuleBundlePayload): HexString =
 
     ## serialize payload variant
     #[for val in serializeUleb128(1'u32): ## variant 1
@@ -135,7 +136,8 @@ proc serializeModulePayload*(payload : ModuleBundlePayload) : HexString =
 
     raise newException(NotImplemented, "Not implemented yet")
 
-template deSerialize*[T : ModuleBundlePayload | ScriptPayload | EntryFunctionPayload](data : var HexString) : untyped =
+template deSerialize*[T: ModuleBundlePayload | ScriptPayload |
+        EntryFunctionPayload](data: var HexString): untyped =
 
     when T is ModuleBundlePayload:
 
@@ -149,13 +151,14 @@ template deSerialize*[T : ModuleBundlePayload | ScriptPayload | EntryFunctionPay
 
         deSerializeEntryFunction(data)
 
-proc deSerializeModulePayload*(payload : var HexString) : ModuleBundlePayload =
-    
+proc deSerializeModulePayload*(payload: var HexString): ModuleBundlePayload =
+
     #let variant = deSerializeUleb128(payload) ## deserialize variant
     raise newException(NotImplemented, "Not implemented yet")
 
-proc deSerializeEntryFunction*[T : EntryFunctionPayload](payload : var HexString) : T =
-    
+proc deSerializeEntryFunction*[T: EntryFunctionPayload](
+    payload: var HexString): T =
+
     #[let variant = deSerializeUleb128(payload) ## deserialize variant
     result.moduleid = deSerialize(payload) ## deserialize module id
     result.function = deSerializeStr(payload) ## deserialize function name
@@ -164,37 +167,37 @@ proc deSerializeEntryFunction*[T : EntryFunctionPayload](payload : var HexString
     for _ in 0..<type_arg_len:
 
         result.type_arguments.add toJson(typetag.deSerialize(payload))
-    
+
     let arg_len = deSerializeUleb128(payload)
     for _ in 0..<arg_len:
 
         result.arguments.add arguments.deSerialize(payload)]#
     raise newException(NotImplemented, "Not implemented yet") ## problem in deSerializing EntryArguments cleanly
 
-proc deSerializeScriptPayload*[T : ScriptPayload](payload : var HexString) : T =
-    
+proc deSerializeScriptPayload*[T: ScriptPayload](payload: var HexString): T =
+
     #let variant = deSerializeUleb128(payload) ## deserialize variant
     raise newException(NotImplemented, "Not implemented yet")
 
-proc fromJsonHook*(v : var EntryFunctionPayload, s : JsonNode) =
+proc fromJsonHook*(v: var EntryFunctionPayload, s: JsonNode) =
 
     let payloadTypeParts = getStr(s["function"]).split("::")
     v = EntryFunctionPayload(
-        moduleid : newModuleid(fmt"{payloadTypeParts[0]}::{payloadTypeParts[1]}"),
-        function : payloadTypeParts[^1],
-        type_arguments : jsonTo(s["type_arguments"], seq[string]),
-        arguments : jsonTo(s["arguments"], seq[EntryArguments])
+        moduleid: newModuleid(fmt"{payloadTypeParts[0]}::{payloadTypeParts[1]}"),
+        function: payloadTypeParts[^1],
+        type_arguments: jsonTo(s["type_arguments"], seq[string]),
+        arguments: jsonTo(s["arguments"], seq[EntryArguments])
     )
 
-proc fromJsonHook*(v : var ScriptPayload, s : JsonNode) =
+proc fromJsonHook*(v: var ScriptPayload, s: JsonNode) =
 
     v = ScriptPayload(
-        code : jsonTo(s["code"], MoveScriptBytecode),
-        type_arguments : jsonTo(s["type_arguments"], seq[string]),
-        arguments : jsonTo(s["arguments"], seq[ScriptArguments])
+        code: jsonTo(s["code"], MoveScriptBytecode),
+        type_arguments: jsonTo(s["type_arguments"], seq[string]),
+        arguments: jsonTo(s["arguments"], seq[ScriptArguments])
     )
 
-proc toJsonHook*(v : EntryFunctionPayload) : JsonNode =
+proc toJsonHook*(v: EntryFunctionPayload): JsonNode =
 
     var s = "{\"type\" : \"entry_function_payload\","
     s.add "\"function\" : \"" & $v.moduleid & "::" & v.function & "\","
@@ -208,11 +211,11 @@ proc toJsonHook*(v : EntryFunctionPayload) : JsonNode =
         if pos != argsLen - 1:
 
             s.add ","
-    
+
     s.add "]}"
     return parseJson(s)
 
-proc toJsonHook*(v : ScriptPayload) : JsonNode =
+proc toJsonHook*(v: ScriptPayload): JsonNode =
 
     var s = "{\"type\" : \"script_payload\","
     s.add "\"code\" : " & $toJson(v.code) & ","
@@ -226,7 +229,7 @@ proc toJsonHook*(v : ScriptPayload) : JsonNode =
         if pos != argsLen - 1:
 
             s.add ","
-    
+
     s.add "]}"
     return parseJson(s)
 
@@ -236,14 +239,17 @@ proc toJsonHook*(v : ScriptPayload) : JsonNode =
 
 when isMainModule:
 
-    let empty : seq[EntryArguments] = @[]
+    let empty: seq[EntryArguments] = @[]
     let payload = EntryFunctionPayload(
-        moduleid : newModuleId("0x3::token"),
-        function : "create_token_script",
-        type_arguments : @[],
-        arguments : @[
-            extendedEArg "collection name", extendedEArg "name name", extendedEArg "description", eArg 5'u8, eArg 5'u8, extendedEArg "http://somewhere.come",
-            eArg uint64(1000000), extendedEArg(@[eArg false, eArg false, eArg false, eArg false, eArg false]),
+        moduleid: newModuleId("0x3::token"),
+        function: "create_token_script",
+        type_arguments: @[],
+        arguments: @[
+            extendedEArg "collection name", extendedEArg "name name",
+            extendedEArg "description", eArg 5'u8, eArg 5'u8,
+            extendedEArg "http://somewhere.come",
+            eArg uint64(1000000), extendedEArg(@[eArg false, eArg false,
+                    eArg false, eArg false, eArg false]),
             extendedEArg(empty), extendedEArg(empty), extendedEArg(empty)
         ]
     )

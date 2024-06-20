@@ -16,14 +16,16 @@ import utils
 
 export ApiError, InvalidApiResponse, FaucetClient, newFaucetClient, close
 
-method faucetFund*(client : FaucetClient, address : string, amount : int) : Future[seq[string]] {.async, gcsafe, base.} =
+method faucetFund*(client: FaucetClient, address: string, amount: int): Future[
+        seq[string]] {.async, gcsafe, base.} =
     ## This function is only meant to be called when using the devnet
     ## returns sequence of transaction hash
-    
-    callNode client, "mint", HttpPost, @[("amount", $amount), ("address", address)], ():
+
+    callNode client, "mint", HttpPost, @[("amount", $amount), ("address",
+            address)], ():
 
         try:
-            
+
             {.cast(gcsafe).}:
 
                 return jsonTo(parseJson(respBody), typeof(result))

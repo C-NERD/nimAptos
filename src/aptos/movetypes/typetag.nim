@@ -16,37 +16,37 @@ import pkg / [bcs]
 import address, identifier
 
 type
-    
+
     TypeTagsBase {.pure.} = enum
 
         Bool, U8, U64, U128, Addr, Signer, Vector, Struct, U16, U32, U256
 
     TypeTags* = object
 
-        case `type` : TypeTagsBase
+        case `type`: TypeTagsBase
 
         of Vector:
 
-            childtype : ref TypeTags
+            childtype: ref TypeTags
 
         of Struct:
 
-            address : Address
-            module, name : Identifier
-            type_args : seq[TypeTags]
+            address: Address
+            module, name: Identifier
+            type_args: seq[TypeTags]
 
         else:
 
             discard
 
-proc serialize*(data : TypeTags) : HexString =
-    
+proc serialize*(data: TypeTags): HexString =
+
     for val in serializeUleb128(uint32(ord(data.`type`))):
 
         result.add bcs.serialize(val)
 
     case data.`type`
-    
+
     of Vector:
 
         result.add serialize data.childtype[]
@@ -70,50 +70,50 @@ proc serialize*(data : TypeTags) : HexString =
 
         discard
 
-proc deSerialize*(data : var HexString) : TypeTags =
+proc deSerialize*(data: var HexString): TypeTags =
 
     let variant = deSerializeUleb128(data)
     case variant
 
     of 0:
 
-        return TypeTags(`type` : Bool)
+        return TypeTags(`type`: Bool)
 
     of 1:
 
-        return TypeTags(`type` : U8)
+        return TypeTags(`type`: U8)
 
     of 2:
 
-        return TypeTags(`type` : U64)
-    
+        return TypeTags(`type`: U64)
+
     of 3:
 
-        return TypeTags(`type` : U128)
+        return TypeTags(`type`: U128)
 
     of 4:
 
-        return TypeTags(`type` : Addr)
+        return TypeTags(`type`: Addr)
 
     of 5:
 
-        return TypeTags(`type` : Signer)
+        return TypeTags(`type`: Signer)
 
     of 6:
 
         result = TypeTags(
-            `type` : Vector 
+            `type`: Vector
         )
         result.childtype[] = deSerialize(data)
 
     of 7:
 
         result = TypeTags(
-            `type` : Struct,
-            address : address.deSerialize(data),
-            module : identifier.deSerialize(data), 
-            name : identifier.deSerialize(data),
-            type_args : @[]
+            `type`: Struct,
+            address: address.deSerialize(data),
+            module: identifier.deSerialize(data),
+            name: identifier.deSerialize(data),
+            type_args: @[]
         )
         let argsLen = deSerializeUleb128(data)
         for _ in 0..<argsLen:
@@ -122,21 +122,21 @@ proc deSerialize*(data : var HexString) : TypeTags =
 
     of 8:
 
-        return TypeTags(`type` : U16)
+        return TypeTags(`type`: U16)
 
     of 9:
 
-        return TypeTags(`type` : U32)
+        return TypeTags(`type`: U32)
 
     of 10:
 
-        return TypeTags(`type` : U256)
+        return TypeTags(`type`: U256)
 
     else:
 
         raise newException(ValueError, "Invalid variant " & $variant)
 
-proc fromJsonHook*(v : var TypeTags, s : JsonNode) =
+proc fromJsonHook*(v: var TypeTags, s: JsonNode) =
 
     let s = getStr(s).strip()
     if not match(s, re"^(bool|u8|u64|u128|address|signer|vector<.+>|0x[0-9a-zA-Z:_<, >]+)$"):
@@ -145,53 +145,53 @@ proc fromJsonHook*(v : var TypeTags, s : JsonNode) =
 
     if s == "bool":
 
-        v = TypeTags(`type` : Bool)
+        v = TypeTags(`type`: Bool)
 
     elif s == "u8":
 
-        v = TypeTags(`type` : U8)
+        v = TypeTags(`type`: U8)
 
     elif s == "u16":
 
-        v = TypeTags(`type` : U16)
+        v = TypeTags(`type`: U16)
 
     elif s == "u32":
 
-        v = TypeTags(`type` : U32)
+        v = TypeTags(`type`: U32)
 
     elif s == "u64":
 
-        v = TypeTags(`type` : U64)
+        v = TypeTags(`type`: U64)
 
     elif s == "u128":
 
-        v = TypeTags(`type` : U128)
+        v = TypeTags(`type`: U128)
 
     elif s == "u256":
 
-        v = TypeTags(`type` : U256)
+        v = TypeTags(`type`: U256)
 
     elif s == "address":
 
-        v = TypeTags(`type` : Addr)
+        v = TypeTags(`type`: Addr)
 
     elif s == "signer":
 
-        v = TypeTags(`type` : Signer)
+        v = TypeTags(`type`: Signer)
 
     elif s[0..5] == "vector":
-        
+
         let child = s[5..^1]
-        v = TypeTags(`type` : Vector)
+        v = TypeTags(`type`: Vector)
         v.childtype[] = jsonTo(%child[1..^2], TypeTags)
 
     elif match(s, re"^.*(::).*(::).*"): ## if it's a struct
-        
+
         let argsPos = find(s, re"(<).*(>)")
         var
-            ogStruct : string
-            structArgs : string
-        
+            ogStruct: string
+            structArgs: string
+
         if argsPos != -1:
 
             structArgs = s[argsPos + 1..^2]
@@ -200,14 +200,14 @@ proc fromJsonHook*(v : var TypeTags, s : JsonNode) =
         else:
 
             ogStruct = s
-        
+
         let parts = ogStruct.split("::")
         v = TypeTags(
-            `type` : Struct,
-            address : initAddress(parts[0]),
-            module : initIdentifier(parts[1]),
-            name : initIdentifier(parts[2]),
-            type_args : @[]
+            `type`: Struct,
+            address: initAddress(parts[0]),
+            module: initIdentifier(parts[1]),
+            name: initIdentifier(parts[2]),
+            type_args: @[]
         )
         if len(structArgs) > 0:
 
@@ -219,9 +219,9 @@ proc fromJsonHook*(v : var TypeTags, s : JsonNode) =
 
         raise newException(ValueError, "Invalid type tag " & s)
 
-proc toJsonHook*(v : TypeTags) : JsonNode =
-    
-    var s : string
+proc toJsonHook*(v: TypeTags): JsonNode =
+
+    var s: string
     case v.`type`
 
     of Bool:
@@ -261,7 +261,7 @@ proc toJsonHook*(v : TypeTags) : JsonNode =
         s = "signer"
 
     of Vector:
-        
+
         s = fmt"vector<{getStr(toJson(v.childtype[]))}>"
 
     of Struct:
@@ -269,7 +269,7 @@ proc toJsonHook*(v : TypeTags) : JsonNode =
         s = fmt"{v.address}::{v.module}::{v.name}"
         let argsLen = len(v.type_args)
         if argsLen != 0:
-            
+
             s.add "<"
             for pos in 0..<argsLen:
 
@@ -282,10 +282,10 @@ proc toJsonHook*(v : TypeTags) : JsonNode =
 
     return %s
 
-proc initTypeTag*(data : string) : TypeTags = jsonTo(%data, TypeTags)
+proc initTypeTag*(data: string): TypeTags = jsonTo(%data, TypeTags)
 
 when isMainModule:
-    
+
     let struct = jsonTo(%"0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>", TypeTags)
     echo toJson(struct)
     echo serialize(struct)
