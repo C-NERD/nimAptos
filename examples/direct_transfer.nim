@@ -22,10 +22,9 @@ let
 
 ## direct transfer second token
 info "performing direct transfer of token..."
-
 let
     acctTxn = waitFor directTransferToken(account1, account2, client,
-            account1.address, collectionName, "cloud and sea", 0, 0.3)
+            account1.address, collectionName, "cloud and sea", 0, 1)
     txn = waitFor client.getTransactionByHash(acctTxn.hash)
 
 assert getBool(getOrDefault(txn, "success")), getStr(getOrDefault(txn, "vm_status"))

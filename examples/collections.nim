@@ -25,7 +25,9 @@ let
     collectionName = "cnerd's collection"
     collectionTxn = waitFor account1.createCollection(client, collectionName,
             "cnerd's aptos collection for testing nim aptos sdk",
-            "https://c-nerd.github.io/blog/static/templates/Cnerd's Collection.html")
+            "https://c-nerd.github.io/blog/static/templates/Cnerd's Collection.html",
+            high(uint64), [true, false, false]
+    )
 notice fmt"collection created at {collectionTxn.hash}"
 
 ## create tokens for collection
@@ -33,19 +35,19 @@ info "creating tokens..."
 let createTxn1 = waitFor account1.createToken(client, collectionName,
         "tweetvibe",
 "logo for my tweet vibe project", "https://c-nerd.github.io/blog/static/images/Cnerd's_Collection/tweetvibe.png",
-        1, 10000)
+        1, 1, 10000, 1000, [false, false, false, true, false])
 notice fmt"token 1 created at {createTxn1.hash}"
 
 let createTxn2 = waitFor account1.createToken(client, collectionName,
         "cloud and sea",
 "trash drawing of cloud and sea", "https://c-nerd.github.io/blog/static/images/Cnerd's_Collection/cloud_and_sea.png",
-        5, 10000)
+        1, 1, 10000, 1000, [false, false, false, true, false])
 notice fmt"token 2 created at {createTxn2.hash}"
 
 ## offering tokens
 info "offering token 1..."
 let offerTxn = waitFor account1.offerToken(client, account2.address,
-        account1.address, collectionName, "tweetvibe", 0, 0.5)
+        account1.address, collectionName, "tweetvibe", 0, 1)
 ## offer token for 0.5 apt
 notice fmt"token 1 offered at {offerTxn.hash}"
 
