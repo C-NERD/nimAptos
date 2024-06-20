@@ -20,6 +20,7 @@
 
 ## std imports
 import std / [asyncdispatch]
+from std / strutils import toLowerAscii
 
 ## project imports
 import ./api/aptosclient
