@@ -2,25 +2,13 @@
   "version": 2,
   "packages": {
     "integers": {
-      "version": "0.1.1",
-      "vcsRevision": "d80108a5fa406d3bc67498a78a1cad51c0741326",
+      "version": "0.1.3",
+      "vcsRevision": "0e1f2839ef61a143e3f6534dac5b84c9a9941f5c",
       "url": "https://github.com/fsh/integers",
       "downloadMethod": "git",
       "dependencies": [],
       "checksums": {
-        "sha1": "0cd987d8c999f1a34bf3b62448a5880bd2558e0b"
-      }
-    },
-    "bcs": {
-      "version": "0.3.5",
-      "vcsRevision": "8c0c8e9c778f2143a50cbbb1476267c4224d8e20",
-      "url": "https://github.com/C-NERD/nimBcs",
-      "downloadMethod": "git",
-      "dependencies": [
-        "integers"
-      ],
-      "checksums": {
-        "sha1": "46aaeddfd853b089b5c9ad19f3ee63196822ec18"
+        "sha1": "00f7414c50c204022ee9e9068699f38bd41e22fe"
       }
     },
     "sha3": {
@@ -41,6 +29,18 @@
       "dependencies": [],
       "checksums": {
         "sha1": "be9a4654dd5839b97f39d5060d98f18ba868623c"
+      }
+    },
+    "bcs": {
+      "version": "0.3.5",
+      "vcsRevision": "95aeef0f19afe8396be55b8d395e5aa9fecf20aa",
+      "url": "https://github.com/C-NERD/nimBcs",
+      "downloadMethod": "git",
+      "dependencies": [
+        "integers"
+      ],
+      "checksums": {
+        "sha1": "dfc018fad3b0347647d31c867a7e0c913a09a98f"
       }
     },
     "libsodium": {
