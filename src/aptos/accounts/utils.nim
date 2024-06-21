@@ -52,6 +52,11 @@ proc getPublicKey*(account: RefAptosAccount): string =
     assert account.privileges, "non privileged accounts only have addresses"
     "0x" & account.publicKey
 
+proc getSeed*(account: RefAptosAccount): string =
+
+    assert account.privileges, "non privileged accounts only have addresses"
+    "0x" & account.seed
+
 proc getPrivateKey*(account: RefAptosAccount): string =
 
     assert account.privileges, "non privileged accounts only have addresses"
@@ -87,6 +92,11 @@ proc newAccount*(address, seed: string):
     if not isValidSeed(seed):
 
         raise newException(InvalidSeed, fmt"seed {seed} is invalid")
+    
+    var seed = seed
+    if seed[0..1] == "0x":
+        
+        seed = seed[2..^1]
 
     let keypair = getKeyPair(seed)
     return RefAptosAccount(

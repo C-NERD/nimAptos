@@ -15,8 +15,8 @@ let
     newAccount1 = waitFor client.createAccount()
     newAccount2 = waitFor client.createAccount()
 
-notice fmt"generated account {newAccount1.address} with seed {newAccount1.seed}"
-notice fmt"generated account {newAccount2.address} with seed {newAccount2.seed}"
+notice fmt"generated account {newAccount1.address} with seed {newAccount1.getSeed()}"
+notice fmt"generated account {newAccount2.address} with seed {newAccount2.getSeed()}"
 
 info "registering accounts..."
 let
