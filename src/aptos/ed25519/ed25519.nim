@@ -11,8 +11,9 @@ when defined(js):
     {.fatal: "js backend not implemented for ed25519 module".}
 
 # stdlib imports
+import std / [sysrand]
 from std / strutils import toLowerAscii, toUpperAscii, parseHexStr, toHex
-from std / random import randomize, rand
+#from std / random import randomize, rand
 
 # third party imports
 from pkg / libsodium / sodium import crypto_sign_seed_keypair,
@@ -28,10 +29,12 @@ template shedPrefix(value: var string) =
 
 proc randomSeed*(): array[32, byte] =
 
-    randomize()
+    #[randomize()
     for pos in 0..31:
 
-        result[pos] = byte(rand(int(high(byte))))
+        result[pos] = byte(rand(int(high(byte))))]#
+
+    assert urandom(result), "failed to generate seed"
 
 proc getSeed*(prikey: string): string = crypto_sign_ed25519_sk_to_seed(prikey)
 
