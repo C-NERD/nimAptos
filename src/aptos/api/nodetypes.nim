@@ -36,7 +36,7 @@ type
     Block* = object
 
         block_height*, block_hash*, block_timestamp*, first_version*,
-            last_version * : string
+            last_version*: string
         transactions*: JsonNode
 
 proc toJsonHook*(v: ViewRequest): JsonNode =
