@@ -17,7 +17,7 @@ from std / strformat import fmt
 from std / strutils import toLowerAscii, isEmptyOrWhitespace, toHex
 
 ## nimble imports
-import pkg / [sha3]
+import pkg / [sha3, bcs]
 import pkg / nimcrypto / utils as cryptoutils
 
 ## project imports
