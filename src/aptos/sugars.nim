@@ -156,7 +156,7 @@ template multiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
     else:
 
         encodedTransaction = "0x" & preHashMultiAgentTxn() & toLowerAscii(
-                $serialize[T](multiAgentTransaction))
+                $serialize(multiAgentTransaction))
 
     var signedTransaction: SignedTransaction[T]
     when account is RefAptosAccount:

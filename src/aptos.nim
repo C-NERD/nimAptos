@@ -202,8 +202,8 @@ proc rotationProofChallenge*(accountForm1, accountForm2: RefAptosAccount |
             SubmittedTransaction[EntryFunctionPayload]] {.async.} =
     ## rotation proof challenge
 
-    refresh(accountForm1, client)
-    refresh(accountForm2, client)
+    await refresh(accountForm1, client)
+    await refresh(accountForm2, client)
 
     var
         fromScheme, toScheme: uint8
@@ -245,8 +245,7 @@ proc rotationProofChallenge*(accountForm1, accountForm2: RefAptosAccount |
             "RotationProofChallenge",
             challenge
         )
-        serChallengeTypeInfo = serialize[RotationProofChallenge](
-                challengeTypeInfo, rotation_challenge.serialize)
+        serChallengeTypeInfo = serialize(challengeTypeInfo)
     var capRotateKey, capUpdateTable: HexString
     when accountForm1 is RefAptosAccount:
 
@@ -362,8 +361,7 @@ proc registerMultiSigAcctFromExistingAcct*(account: RefAptosAccount |
             "MultisigAccountCreationMessage",
             creationMsg
         )
-        serCreationMsgTypeInfo = serialize[MultiSigCreationMessage](
-                creationMsgTypeInfo, multisig_creation_message.serialize)
+        serCreationMsgTypeInfo = serialize(creationMsgTypeInfo)
         accountSig = signMsg(new_account, $serCreationMsgTypeInfo)
 
     var payload: EntryFunctionPayload
@@ -463,7 +461,7 @@ proc multiSigSendAptCoin*(owner: RefAptosAccount, account: RefMultiSigAccount,
         type_arguments: @["0x1::aptos_coin::AptosCoin"],
         arguments: @[eArg recipient, eArg (uint64(amount.toOcta()))]
     )
-    payload = createMultiSigTransaction(account, serializeEntryFunction(payload))
+    payload = createMultiSigTransaction(account, serialize(payload))
     result = transact[EntryFunctionPayload](owner, client, payload,
             max_gas_amount, gas_price, txn_duration)
 
