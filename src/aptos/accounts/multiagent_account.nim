@@ -25,8 +25,8 @@ proc preHashMultiAgentTxn*(): string =
 
 proc multiAgentSignTransaction*[T: TransactionPayload](
     sender_sig: Authenticator, secondary_signers: seq[Authenticator],
-
-signer_addrs: seq[Address], transaction: RawTransaction[T]): SignedTransaction[T] =
+    signer_addrs: seq[Address], transaction: RawTransaction[
+            T]): SignedTransaction[T] =
 
     result = toSignedTransaction[T](transaction)
     result.authenticator = initAuthenticator(

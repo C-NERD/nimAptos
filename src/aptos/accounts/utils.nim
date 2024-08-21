@@ -39,7 +39,7 @@ type
 
         accounts*: seq[RefAptosAccount]
         last_executed_sequence_number*, next_sequence_number*,
-            num_signatures_required * : uint64
+            num_signatures_required*: uint64
 
 proc isValidSeed*(seed: string): bool = match seed, re"^((0x)?)([A-z]|[0-9]){64}$"
 
@@ -92,10 +92,10 @@ proc newAccount*(address, seed: string):
     if not isValidSeed(seed):
 
         raise newException(InvalidSeed, fmt"seed {seed} is invalid")
-    
+
     var seed = seed
     if seed[0..1] == "0x":
-        
+
         seed = seed[2..^1]
 
     let keypair = getKeyPair(seed)

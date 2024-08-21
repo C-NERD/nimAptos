@@ -45,9 +45,9 @@ type
         creation_time_secs*: uint64
 
 ## MultiSigTransaction helpers
- #[proc initMultiSigTransaction() : MultiSigTransaction =
+    #[proc initMultiSigTransaction() : MultiSigTransaction =
 
- discard]#
+    discard]#
 
 proc fromJsonHook*(v: var MultiSigTransaction, s: JsonNode) =
 
