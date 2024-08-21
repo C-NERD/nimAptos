@@ -291,94 +291,96 @@ template toBase*(data: ScriptArguments | EntryArguments,
 template baseDeSerializeScriptArg(data: var HexString,
         custom: untyped): untyped =
 
-    var variant = bcs.deSerialize[uint8](data)
+    var variant = deSerialize[uint8](data)
     if variant == 0:
 
-        var base {.inject.} = bcs.deSerialize[uint8](data)
+        var base {.inject.} = deSerialize[uint8](data)
         custom
 
     elif variant == 1:
 
-        var base {.inject.} = bcs.deSerialize[uint64](data)
+        var base {.inject.} = deSerialize[uint64](data)
         custom
 
     elif variant == 2:
 
-        var base {.inject.} = bcs.deSerialize[uint128](data)
+        var base {.inject.} = deSerialize[uint128](data)
         custom
 
     elif variant == 3:
 
-        var base {.inject.} = address.deSerialize(data)
+        var base {.inject.}: Address
+        fromBcsHook(data, base)
         custom
 
     elif variant == 4:
 
-        var base {.inject.} = bcs.deSerialize[HexString](
+        var base {.inject.} = deSerialize[HexString](
                 data) ## TODO :: implement code to properly deserialize hex string
         custom
 
     elif variant == 5:
 
-        var base {.inject.} = bcs.deSerialize[bool](data)
+        var base {.inject.} = deSerialize[bool](data)
         custom
 
     elif variant == 6:
 
-        var base {.inject.} = bcs.deSerialize[uint16](data)
+        var base {.inject.} = deSerialize[uint16](data)
         custom
 
     elif variant == 7:
 
-        var base {.inject.} = bcs.deSerialize[uint32](data)
+        var base {.inject.} = deSerialize[uint32](data)
         custom
 
     elif variant == 8:
 
-        var base {.inject.} = bcs.deSerialize[uint256](data)
+        var base {.inject.} = deSerialize[uint256](data)
         custom
 
     else:
 
         raise newException(ValueError, "Invalid variant from bcs")
 
-proc serialize*(data: ScriptArguments): HexString =
+proc toBcsHook*(data: ScriptArguments, output: var HexString) =
 
     toBase data:
 
-        result.add bcs.serialize[uint8](uint8(variant(base)))
+        output.add serialize(uint8(variant(base)))
         when base is Address:
 
-            result.add address.serialize(base)
+            toBcsHook(base, output)
 
         elif base is HexString:
 
             if isNil(data.data):
 
-                result.add bcs.serialize[HexString](base)
+                output.add serialize(base)
 
             else:
 
-                result.add base
+                output.add base
 
         else:
 
-            result.add bcs.serialize[typeof(base)](base)
+            output.add serialize(base)
 
-proc serialize*(data: EntryArguments, asBytes: bool = true): HexString =
+proc toBcsHook*(data: EntryArguments, output: var HexString,
+        asBytes: bool = true) =
 
     toBase data:
 
         var hex: HexString
         when base is Address:
 
-            hex.add address.serialize(base)
+            toBcsHook(base, hex)
 
         elif base is HexString:
 
             if isNil(data.data): ## checks if is pure Hex
 
-                hex.add bcs.serialize[HexString](base)
+                hex.add serialize(base)
 
             else: ## if is hex gotten from string or seq
 
@@ -386,27 +388,27 @@ proc serialize*(data: EntryArguments, asBytes: bool = true): HexString =
 
         else:
 
-            hex.add bcs.serialize[typeof(base)](base)
+            hex.add serialize(base)
 
         if asBytes: ## false when used by extendedEArg
 
             for val in serializeUleb128(uint32(byteLen(hex))):
 
-                result.add bcs.serialize[uint8](val)
+                output.add serialize(val)
 
-        result.add(hex)
+        output.add(hex)
 
-proc deSerialize*[T: ScriptArguments | EntryArguments](data: var HexString): T =
+proc fromBcsHook*[T: ScriptArguments | EntryArguments](data: var HexString, output: T) =
 
     when T is ScriptArguments:
 
         baseDeSerializeScriptArg(data):
 
-            return sArg base
+            output = sArg base
 
     elif T is EntryArguments:
 
-        raise newException(NotImplemented, "Not implemented yet")
+        raise newException(NotImplemented, "EntryArguments bcs deserialization not implemented yet")
 
 proc fromSeq[T: seq[ScriptArguments] | seq[EntryArguments] | seq[seq]](
     data: T): HexString =
@@ -417,7 +419,7 @@ proc fromSeq[T: seq[ScriptArguments] | seq[EntryArguments] | seq[seq]](
 
     for val in serializeUleb128(uint32(len(data))):
 
-        result.add bcs.serialize[uint8](val)
+        result.add serialize(val)
 
     when T is seq[seq]:
 
@@ -431,11 +433,11 @@ proc fromSeq[T: seq[ScriptArguments] | seq[EntryArguments] | seq[seq]](
 
             when item is ScriptArguments:
 
-                result.add serialize(item)
+                toBcsHook(item, result)
 
             elif item is EntryArguments:
 
-                result.add serialize(item, false)
+                toBcsHook(item, result)
 
 proc toJsonHook*(v: ScriptArguments): JsonNode =
 

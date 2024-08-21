@@ -27,17 +27,16 @@ proc initTypeInfo*[T](account_address: Address, module_name,
         data: data
     )
 
-proc serialize*[T](data: TypeInfo[T], data_serialize: proc(x: T): HexString, ): HexString =
+proc toBcsHook*[T](data: TypeInfo[T], output: var HexString) =
 
-    result.add serialize(data.account_address)
-    result.add bcs.serialize(data.module_name)
-    result.add bcs.serialize(data.struct_name)
-    result.add data_serialize(data.data)
+    toBcsHook(data.account_address, output)
+    output.add serialize(data.module_name)
+    output.add serialize(data.struct_name)
+    output.add serialize(data.data)
 
-proc deSerialize*[T](data: var HexString, data_deSerialize: proc(
-        x: var HexString): T, ): TypeInfo[T] =
+proc fromBcsHook*[T](data: var HexString, output: var TypeInfo[T]) =
 
-    result.account_address = address.deSerialize(data)
-    result.module_name = bcs.deSerialize[string](data)
-    result.struct_name = bcs.deSerialize[string](data)
-    result.data = data_deSerialize(data)
+    fromBcsHook(data, output.account_address)
+    output.module_name = deSerialize[string](data)
+    output.struct_name = deSerialize[string](data)
+    output.data = deSerialize[typeof(output.data)](data)

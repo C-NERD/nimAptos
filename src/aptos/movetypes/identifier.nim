@@ -18,7 +18,7 @@ proc `$`*(data: Identifier): string = data.value
 
 proc initIdentifier*(data: string): Identifier = Identifier(value: data)
 
-proc serialize*(data: Identifier): HexString = serializeStr(data.value)
+proc toBcsHook*(data: Identifier, output: var HexString) = output.add serializeStr(data.value)
 
-proc deSerialize*(data: var HexString): Identifier = Identifier(
+proc fromBcsHook*(data: var HexString, output: var Identifier) = output = Identifier(
         value: deSerializeStr(data))
