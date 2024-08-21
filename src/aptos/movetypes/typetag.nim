@@ -39,98 +39,100 @@ type
 
             discard
 
-proc serialize*(data: TypeTags): HexString =
+proc toBcsHook*(data: TypeTags, output: var HexString) =
 
     for val in serializeUleb128(uint32(ord(data.`type`))):
 
-        result.add bcs.serialize(val)
+        output.add serialize(val)
 
     case data.`type`
 
     of Vector:
 
-        result.add serialize data.childtype[]
+        toBcsHook(data.childtype[], output)
 
     of Struct:
 
-        result.add serialize(data.address)
-        result.add serialize(data.module)
-        result.add serialize(data.name)
+        toBcsHook(data.address, output)
+        toBcsHook(data.module, output)
+        toBcsHook(data.name, output)
 
         ## serialize type_args
         for val in serializeUleb128(uint32(len(data.type_args))):
 
-            result.add serialize(val)
+            output.add serialize(val)
 
         for child in data.type_args:
 
-            result.add serialize(child)
+            toBcsHook(child, output)
 
     else:
 
         discard
 
-proc deSerialize*(data: var HexString): TypeTags =
+proc fromBcsHook*(data: var HexString, output: var TypeTags) =
 
     let variant = deSerializeUleb128(data)
     case variant
 
     of 0:
 
-        return TypeTags(`type`: Bool)
+        output = TypeTags(`type`: Bool)
 
     of 1:
 
-        return TypeTags(`type`: U8)
+        output = TypeTags(`type`: U8)
 
     of 2:
 
-        return TypeTags(`type`: U64)
+        output = TypeTags(`type`: U64)
 
     of 3:
 
-        return TypeTags(`type`: U128)
+        output = TypeTags(`type`: U128)
 
     of 4:
 
-        return TypeTags(`type`: Addr)
+        output = TypeTags(`type`: Addr)
 
     of 5:
 
-        return TypeTags(`type`: Signer)
+        output = TypeTags(`type`: Signer)
 
     of 6:
 
-        result = TypeTags(
+        output = TypeTags(
             `type`: Vector
         )
-        result.childtype[] = deSerialize(data)
+        fromBcsHook(data, output.childtype[])
 
     of 7:
 
-        result = TypeTags(
+        output = TypeTags(
             `type`: Struct,
-            address: address.deSerialize(data),
-            module: identifier.deSerialize(data),
-            name: identifier.deSerialize(data),
             type_args: @[]
         )
+        fromBcsHook(data, output.address)
+        fromBcsHook(data, output.module)
+        fromBcsHook(data, output.name)
         let argsLen = deSerializeUleb128(data)
         for _ in 0..<argsLen:
 
-            result.type_args.add deSerialize(data)
+            var typeArg: TypeTags
+            fromBcsHook(data, typeArg)
+            output.type_args.add typeArg
 
     of 8:
 
-        return TypeTags(`type`: U16)
+        output = TypeTags(`type`: U16)
 
     of 9:
 
-        return TypeTags(`type`: U32)
+        output = TypeTags(`type`: U32)
 
     of 10:
 
-        return TypeTags(`type`: U256)
+        output = TypeTags(`type`: U256)
 
     else:
 

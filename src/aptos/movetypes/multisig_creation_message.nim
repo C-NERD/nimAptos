@@ -32,32 +32,34 @@ proc initMultiSigCreationMessage*(account_address: Address, client: AptosClient,
         num_signatures_required: num_signatures_required
     )
 
-proc serialize*(data: MultiSigCreationMessage): HexString =
+proc toBcsHook*(data: MultiSigCreationMessage, output: var HexString) =
 
-    result.add bcs.serialize(data.chain_id)
-    result.add address.serialize(data.account_address)
-    result.add bcs.serialize(data.sequence_number)
+    output.add serialize(data.chain_id)
+    toBcsHook(data.account_address, output)
+    output.add serialize(data.sequence_number)
 
     for val in serializeUleb128(uint32(len(data.owners))): ## serialize owners length
 
-        result.add bcs.serialize(val)
+        output.add serialize(val)
 
     for owner in data.owners:
 
-        result.add address.serialize(owner)
+        toBcsHook(owner, output)
 
-    result.add bcs.serialize(data.num_signatures_required)
+    output.add serialize(data.num_signatures_required)
 
-proc deSerialize*(data: var HexString): MultiSigCreationMessage =
+proc fromBcsHook*(data: var HexString, output: var MultiSigCreationMessage) =
 
-    result.chain_id = bcs.deSerialize[uint8](data)
-    result.account_address = address.deSerialize(data)
-    result.sequence_number = bcs.deSerialize[uint64](data)
+    output.chain_id = deSerialize[uint8](data)
+    fromBcsHook(data, output.account_address)
+    output.sequence_number = deSerialize[uint64](data)
 
     let ownersLen = deSerializeUleb128(data)
     for _ in 0..<ownersLen:
 
-        result.owners.add address.deSerialize(data)
+        var owner: Address
+        fromBcsHook(data, owner)
+        output.owners.add owner
 
-    result.num_signatures_required = bcs.deSerialize[uint64](data)
+    output.num_signatures_required = deSerialize[uint64](data)
 

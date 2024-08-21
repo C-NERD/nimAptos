@@ -28,16 +28,16 @@ proc initRotationProofChallenge*(sequence_number: uint64, originator,
         new_public_key: new_public_key
     )
 
-proc serialize*(data: RotationProofChallenge): HexString =
+proc toBcsHook*(data: RotationProofChallenge, output: var HexString) =
 
-    result.add bcs.serialize(data.sequence_number)
-    result.add address.serialize(data.originator)
-    result.add address.serialize(data.current_auth_key)
-    result.add bcs.serialize(data.new_public_key)
+    output.add serialize(data.sequence_number)
+    toBcsHook(data.originator, output)
+    toBcsHook(data.current_auth_key, output)
+    output.add serialize(data.new_public_key)
 
-proc deSerialize*(data: var HexString): RotationProofChallenge =
+proc fromBcsHook*(data: var HexString, output: var RotationProofChallenge) =
 
-    result.sequence_number = bcs.deSerialize[uint64](data)
-    result.originator = address.deSerialize(data)
-    result.current_auth_key = address.deSerialize(data)
-    result.new_public_key = bcs.deSerialize[HexString](data)
+    output.sequence_number = deSerialize[uint64](data)
+    fromBcsHook(data, output.originator)
+    fromBcsHook(data, output.current_auth_key)
+    output.new_public_key = deSerialize[HexString](data)

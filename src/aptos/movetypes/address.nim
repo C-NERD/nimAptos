@@ -56,13 +56,13 @@ proc initAddress*(data: string): Address =
 
         result[pos] = data[pos]
 
-proc serialize*(data: Address): HexString =
+proc toBcsHook*(data: Address, output: var HexString) =
 
-    result.add fromString($data)
+    output.add fromString($data)
 
-proc deSerialize*(data: var HexString): Address =
+proc fromBcsHook*(data: var HexString, output: var Address) =
 
-    result = initAddress($(data[0..63]))
+    output = initAddress($(data[0..63]))
     if len(data) > 64:
 
         data = data[64..^1]
