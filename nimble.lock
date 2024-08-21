@@ -13,14 +13,14 @@
     },
     "bcs": {
       "version": "0.3.5",
-      "vcsRevision": "21c510855f3d401da46a7683af43e2e218b0c16e",
+      "vcsRevision": "e26ab2ae35e4f8803d4b91efaf2b11bfe961bf1e",
       "url": "",
       "downloadMethod": "git",
       "dependencies": [
         "integers"
       ],
       "checksums": {
-        "sha1": "8d8b1e16264d12f758b97c70e155b706d4867321"
+        "sha1": "617d94a55a712d88b29e989af24afd51467bcfd1"
       }
     },
     "sha3": {
