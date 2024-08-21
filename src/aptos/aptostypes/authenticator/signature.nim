@@ -14,6 +14,9 @@ from std / strutils import toHex
 ## third party imports
 import pkg / [bcs]
 
+## project imports
+import ../../errors
+
 type
 
     SingleEd25519Signature* = HexString
@@ -93,15 +96,15 @@ proc getSignatures*(signatures: MultiEd25519Signature): seq[
 proc getBitmap*(signatures: MultiEd25519Signature): HexString = signatures.bitmap
 
 ## serialization procs
-proc serialize*(data: SingleEd25519Signature): HexString =
+proc toBcsHook*(data: SingleEd25519Signature, output: var HexString) =
 
     for val in serializeUleb128(uint32(byteLen(data))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
-    result.add data
+    output.add data
 
-proc serialize*(data: MultiEd25519Signature): HexString =
+proc toBcsHook*(data: MultiEd25519Signature, output: var HexString) =
 
     var bcsResult: HexString
     for signature in data.signatures:
@@ -109,18 +112,18 @@ proc serialize*(data: MultiEd25519Signature): HexString =
         bcsResult.add signature
 
     bcsResult.add data.bitmap
-    return bcsResult
+    output.add bcsResult
     #result = bcs.serialize(bcsResult)
 
-template deSerializeSingleEd25519Signature(data: var HexString,
-        sig: var SingleEd25519Signature): untyped =
+proc fromBcsHook*(data: var HexString,
+        output: var SingleEd25519Signature) =
 
     let byteLen = deSerializeUleb128(data)
-    sig.add data[0..((byteLen * 2) - 1)]
+    output = data[0..((byteLen * 2) - 1)]
     data = data[(byteLen * 2)..^1]
 
-template deSerializeMultiEd25519Signature(data: var HexString,
-        sigs: var MultiEd25519Signature): untyped =
+proc fromBcsHook*(data: var HexString,
+        output: var MultiEd25519Signature) =
 
     #[sigs.bitmap = data[(len(data) - BITMAP_HEX_LENGTH)..^1]
     data = data[0..((len(data) - 1) - BITMAP_HEX_LENGTH)]
@@ -134,16 +137,6 @@ template deSerializeMultiEd25519Signature(data: var HexString,
 
         hexData = hexData[SINGLE_ED25519_SIG_HEX_LENGTH..^1]]#
 
-    {.fatal: "MultiEd25519Signature deSerialization is not implemented yet".}
-
-proc deSerialize*[T: SingleEd25519Signature | MultiEd25519Signature](
-    data: var HexString): T =
-
-    when T is SingleEd25519Signature:
-
-        deSerializeSingleEd25519Signature(data, result)
-
-    elif T is MultiEd25519Signature:
-
-        deSerializeMultiEd25519Signature(data, result)
+    raise newException(NotImplemented, "MultiEd25519Signature bcs deserialization not implemented yet")
+    #{.fatal: "MultiEd25519Signature deSerialization is not implemented yet".}
 

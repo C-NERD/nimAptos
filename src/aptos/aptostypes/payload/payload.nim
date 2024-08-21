@@ -47,117 +47,89 @@ type
 
         write_set*: WriteSet
 
-template serialize*[T: ModuleBundlePayload | ScriptPayload |
-        EntryFunctionPayload](data: T): untyped =
-
-    when T is ModuleBundlePayload:
-
-        serializeModulePayload(data)
-
-    elif T is ScriptPayload:
-
-        serializeScriptPayload(data)
-
-    elif T is EntryFunctionPayload:
-
-        serializeEntryFunction(data)
-
-proc serializeEntryFunction*[T: EntryFunctionPayload](payload: T): HexString =
+proc toBcsHook*[T: EntryFunctionPayload](data: T, output: var HexString) =
 
     ## serialize payload variant
     for val in serializeUleb128(2'u32): ## variant 2
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     ## serialize module id object
-    result.add moduleid.serialize(payload.moduleid)
+    toBcsHook(data.moduleid, output)
 
     ## serialize function name
-    result.add bcs.serializeStr(payload.function)
+    output.add serializeStr(data.function)
 
     ## serialize type_arguments
-    for val in serializeUleb128(uint32(len(payload.type_arguments))):
+    for val in serializeUleb128(uint32(len(data.type_arguments))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
-    for item in payload.type_arguments:
+    for item in data.type_arguments:
 
-        result.add typetag.serialize(jsonTo(%item, TypeTags))
+        toBcsHook(initTypeTag(item), output)
 
     ## serializing arguments
-    for val in serializeUleb128(uint32(len(payload.arguments))):
+    for val in serializeUleb128(uint32(len(data.arguments))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
-    for item in payload.arguments:
+    for item in data.arguments:
 
-        result.add arguments.serialize(item)
+        toBcsHook(item, output)
 
-proc serializeScriptPayload*[T: ScriptPayload](payload: T): HexString =
+proc toBcsHook*[T: ScriptPayload](payload: T, output: var HexString) =
 
     ## serialize payload variant
     for val in serializeUleb128(0'u32): ## variant 0
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     ## serialize payload bytecode
     for val in serializeUleb128(uint32(len(payload.code.bytecode) / 2)):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     var bytecode = payload.code.bytecode
     removePrefix(bytecode, "0x")
-    result.add bytecode
+    output.add bytecode
 
     ## serialize type_arguments
     for val in serializeUleb128(uint32(len(payload.type_arguments))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     for item in payload.type_arguments:
 
-        result.add typetag.serialize(jsonTo(%item, TypeTags))
+        toBcsHook(initTypeTag(item), output)
 
     ## serializing arguments
     for val in serializeUleb128(uint32(len(payload.arguments))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     for item in payload.arguments:
 
-        result.add arguments.serialize(item)
+        toBcsHook(item, output)
 
-proc serializeModulePayload*(payload: ModuleBundlePayload): HexString =
+proc toBcsHook*(data: ModuleBundlePayload, output: var HexString) =
 
     ## serialize payload variant
     #[for val in serializeUleb128(1'u32): ## variant 1
 
         result.add serialize[uint8](val)]#
 
-    raise newException(NotImplemented, "Not implemented yet")
+    raise newException(NotImplemented, "ModuleBundlePayload bcs serialization not implemented yet")
+    #{.fatal : "ModuleBundlePayload bcs serialization not implemented yet".}
 
-template deSerialize*[T: ModuleBundlePayload | ScriptPayload |
-        EntryFunctionPayload](data: var HexString): untyped =
-
-    when T is ModuleBundlePayload:
-
-        deSerializeModulePayload(data)
-
-    elif T is ScriptPayload:
-
-        deSerializeScriptPayload(data)
-
-    elif T is EntryFunctionPayload:
-
-        deSerializeEntryFunction(data)
-
-proc deSerializeModulePayload*(payload: var HexString): ModuleBundlePayload =
+proc fromBcsHook*(data: var HexString, output: var ModuleBundlePayload) =
 
     #let variant = deSerializeUleb128(payload) ## deserialize variant
-    raise newException(NotImplemented, "Not implemented yet")
+    raise newException(NotImplemented, "ModuleBundlePayload bcs deserialization not implemented yet")
+    #{.fatal : "ModuleBundlePayload bcs deSerialization not implemented yet".}
 
-proc deSerializeEntryFunction*[T: EntryFunctionPayload](
-    payload: var HexString): T =
+proc fromBcsHook*[T: EntryFunctionPayload](
+    data: var HexString, output: var T) =
 
     #[let variant = deSerializeUleb128(payload) ## deserialize variant
     result.moduleid = deSerialize(payload) ## deserialize module id
@@ -172,12 +144,14 @@ proc deSerializeEntryFunction*[T: EntryFunctionPayload](
     for _ in 0..<arg_len:
 
         result.arguments.add arguments.deSerialize(payload)]#
-    raise newException(NotImplemented, "Not implemented yet") ## problem in deSerializing EntryArguments cleanly
+    raise newException(NotImplemented, "EntryFunctionPayload bcs deserializatio not implemented yet") ## problem in deSerializing EntryArguments cleanly
+    #{.fatal : "EntryFunctionPayload bcs deSerialization not implemented yet".}
 
-proc deSerializeScriptPayload*[T: ScriptPayload](payload: var HexString): T =
+proc fromBcsHook*[T: ScriptPayload](data: var HexString, output: var T) =
 
     #let variant = deSerializeUleb128(payload) ## deserialize variant
-    raise newException(NotImplemented, "Not implemented yet")
+    raise newException(NotImplemented, "ScriptPayload bcs deserialization not implemented yet")
+    #{.fatal : "ScriptPayload bcs deSerialization not implemented yet".}
 
 proc fromJsonHook*(v: var EntryFunctionPayload, s: JsonNode) =
 
@@ -196,6 +170,11 @@ proc fromJsonHook*(v: var ScriptPayload, s: JsonNode) =
         type_arguments: jsonTo(s["type_arguments"], seq[string]),
         arguments: jsonTo(s["arguments"], seq[ScriptArguments])
     )
+
+proc fromJsonHook*(v: var ModuleBundlePayload, s: JsonNode) =
+
+    raise newException(NotImplemented, "ModuleBundlePayload json deserialization not implemented yet")
+    #{.fatal : "ModuleBundlePayload json serialization not implemented yet".}
 
 proc toJsonHook*(v: EntryFunctionPayload): JsonNode =
 
@@ -233,9 +212,10 @@ proc toJsonHook*(v: ScriptPayload): JsonNode =
     s.add "]}"
     return parseJson(s)
 
-#[proc toJsonHook*(v : ModuleBundlePayload) : JsonNode =
+proc toJsonHook*(v: ModuleBundlePayload): JsonNode =
 
-    raise newException(NotImplemented, "Not implemented yet")]#
+    raise newException(NotImplemented, "ModuleBundlePayload json serialization not implemented yet")
+    #{.fatal : "ModuleBundlePayload json deSerialization not implemented yet".}
 
 when isMainModule:
 

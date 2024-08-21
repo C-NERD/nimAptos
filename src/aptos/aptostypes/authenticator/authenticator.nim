@@ -278,105 +278,96 @@ proc toJsonHook*(v: Authenticator): JsonNode =
             result = toJsonHook(auth)
             result["type"] = %($MultiAgentEd25519)
 
-template serialize(data: SingleEd25519Authenticator): untyped =
+proc toBcsHook*(data: SingleEd25519Authenticator, output: var HexString) =
 
-    var bcsResult = publickey.serialize(data.public_key)
-    bcsResult.add signature.serialize(data.signature)
-    bcsResult
+    publickey.toBcsHook(data.public_key, output)
+    signature.toBcsHook(data.signature, output)
 
-template serialize(data: MultiEd25519Authenticator): untyped =
+proc toBcsHook*(data: MultiEd25519Authenticator, output: var HexString) =
 
-    var bcsResult = publickey.serialize(data.public_keys)
-    bcsResult.add signature.serialize(data.signatures)
-    bcsResult
+    toBcsHook(data.public_keys, output)
+    toBcsHook(data.signatures, output)
 
-template serialize(data: MultiAgentEd25519Authenticator): untyped =
+template toBcsHook(data: MultiAgentEd25519Authenticator,
+        output: var HexString) =
 
-    var bcsResult = serialize(data.sender[])
+    toBcsHook(data.sender[], output)
 
     ## signer addresses
     for val in serializeUleb128(uint32(len(data.secondary_signer_addresses))):
 
-        bcsResult.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     for address in data.secondary_signer_addresses:
 
-        bcsResult.add serialize(address)
+        toBcsHook(address, output)
 
     ## signer authenticators
     for val in serializeUleb128(uint32(len(data.secondary_signers))):
 
-        bcsResult.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     for signer in data.secondary_signers:
 
-        bcsResult.add serialize(signer)
+        toBcsHook(signer, output)
 
-    bcsResult
-
-proc serialize*(data: Authenticator): HexString =
+proc toBcsHook*(data: Authenticator, output: var HexString) =
 
     for val in serializeUleb128(uint32(ord(data.`type`))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
     getAuthenticator data:
 
-        when auth is SingleEd25519Authenticator:
+        toBcsHook(auth, output)
 
-            result.add serialize(auth)
+proc fromBcsHook*(data: var HexString,
+        output: var SingleEd25519Authenticator) =
 
-        elif auth is MultiEd25519Authenticator:
+    publickey.fromBcsHook(data, output.publickey)
+    signature.fromBcsHook(data, output.signature)
 
-            result.add serialize(auth)
-
-        elif auth is MultiAgentEd25519Authenticator:
-
-            result.add serialize(auth)
-
-template deSerialize(data: var HexString,
-        auth: var SingleEd25519Authenticator) =
-
-    auth.public_key = publickey.deSerialize[SinglePubKey](data)
-    auth.signature = signature.deSerialize[SingleEd25519Signature](data)
-
-template deSerialize(data: var HexString, auth: var MultiEd25519Authenticator) =
+proc fromBcsHook*(data: var HexString, output: var MultiEd25519Authenticator) =
 
     ## deSerialization of MultiEd25519Signature is problematic
     ## as such this proc cannot be implemented not
     ## TODO :: improve both implementations
-    raise newException(NotImplemented, "deserialization for multi ed25519 authenticator not implemented yet")
+    raise newException(NotImplemented, "MultiEd25519Authenticator bcs deserialization not implemented yet")
+    #{.fatal: "MultiEd25519Authenticator deSerialization is not implemented yet".}
 
-template deSerialize(data: var HexString,
-        auth: var MultiAgentEd25519Authenticator) =
+template fromBcsHook*(data: var HexString,
+        output: var MultiAgentEd25519Authenticator) =
 
-    auth.sender[] = deSerialize(data)
+    fromBcsHook(data, output.sender[])
 
     ## signer addresses
     let signerAddrsLen = deSerializeUleb128(data)
-    for _ in 0..<signerAddrsLen:
+    output.secondary_signer_addresses.newSeq(signerAddrsLen)
+    for pos in 0..<signerAddrsLen:
 
-        auth.secondary_signer_addresses.add address.deSerialize(data)
+        fromBcsHook(data, output.secondary_signer_addresses[pos])
 
     ## signer auths
     let signerAuthLen = deSerializeUleb128(data)
-    for _ in 0..<signerAuthLen:
+    output.secondary_signers.newSeq(signerAuthLen)
+    for pos in 0..<signerAuthLen:
 
-        auth.secondary_signers.add deSerialize(data)
+        fromBcsHook(data, output.secondary_signers[pos])
 
-proc deSerialize*(data: var HexString): Authenticator =
+proc fromBcsHook*(data: var HexString, output: var Authenticator) =
 
     let variant = deSerializeUleb128(data)
     case AuthenticatorType(variant)
 
     of SingleEd25519:
 
-        deSerialize(data, result.single_auth)
+        fromBcsHook(data, output.single_auth)
 
     of MultiEd25519:
 
-        deSerialize(data, result.multi_auth)
+        fromBcsHook(data, output.multi_auth)
 
     of MultiAgentEd25519:
 
-        deSerialize(data, result.multi_agent_auth)
+        fromBcsHook(data, output.multi_agent_auth)
+
