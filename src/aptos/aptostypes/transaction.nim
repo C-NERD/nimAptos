@@ -21,7 +21,7 @@ type
 
         chain_id*: uint8
         sender*, sequence_number*, max_gas_amount*, gas_unit_price*,
-            expiration_timestamp_secs * : string
+            expiration_timestamp_secs*: string
         payload*: T
 
     SignedTransaction*[T: TransactionPayload] = ref object of RawTransaction[
@@ -67,66 +67,52 @@ proc toMultiAgentRawTransaction*[T: TransactionPayload](txn: RawTransaction[T] |
     )
 
 ## serialization procs
-proc serialize*(transaction: RawTransaction): HexString =
+proc toBcsHook*(data: RawTransaction, output: var HexString) =
 
-    if transaction.isNil():
+    let sender = fromString(data.sender)
+    output.add $sender
 
-        raise newException(NilAccessDefect, "transaction is nil")
+    output.add serialize(parseBiggestUInt(
+            data.sequence_number))
 
-    let sender = fromString(transaction.sender)
-    result.add $sender
+    toBcsHook(data.payload, output)
 
-    result.add bcs.serialize[uint64](parseBiggestUInt(
-            transaction.sequence_number))
+    output.add serialize(parseBiggestUInt(
+            data.max_gas_amount))
 
-    var payloadHex: HexString
-    when transaction.payload is EntryFunctionPayload:
+    output.add serialize(parseBiggestUInt(
+            data.gas_unit_price))
 
-        payloadHex = serializeEntryFunction[EntryFunctionPayload](
-                transaction.payload)
+    output.add serialize(parseBiggestUInt(
+            data.expiration_timestamp_secs))
 
-    elif transaction.payload is ScriptPayload:
+    output.add serialize(data.chain_id)
 
-        payloadHex = serializeScriptPayload[ScriptPayload](transaction.payload)
+proc fromBcsHook*(data: var HexString, output: var RawTransaction) =
 
-    result.add payloadHex
+    raise newException(NotImplemented, "RawTransaction bcs deserialization not implemented yet")
+    #{.fatal : "RawTransaction bcs deSerialization not implemented yet".}
 
-    result.add bcs.serialize[uint64](parseBiggestUInt(
-            transaction.max_gas_amount))
+proc toBcsHook*[T: TransactionPayload](data: MultiAgentRawTransaction[
+        T], output: var HexString) =
 
-    result.add bcs.serialize[uint64](parseBiggestUInt(
-            transaction.gas_unit_price))
+    output.add serialize(0'u8) ## a type of transaction variant serialization
 
-    result.add bcs.serialize[uint64](parseBiggestUInt(
-            transaction.expiration_timestamp_secs))
-
-    result.add bcs.serialize[uint8](transaction.chain_id)
-
-proc deSerialize*(data: var HexString): RawTransaction =
-
-    discard
-
-proc serialize*[T: TransactionPayload](transaction: MultiAgentRawTransaction[
-        T]): HexString =
-
-    if transaction.isNil():
-
-        raise newException(NilAccessDefect, "transaction is nil")
-
-    result.add bcs.serialize[uint8](0'u8) ## a type of transaction variant serialization
-
-    let rawTxn = RawTransaction[T](transaction)
-    let rawEncode = serialize(rawTxn)
-    result.add rawEncode
+    toBcsHook(RawTransaction[T](data), output)
 
     ## serialize secondary signers as a sequence of Address
-    for val in serializeUleb128(uint32(len(transaction.secondary_signers))):
+    for val in serializeUleb128(uint32(len(data.secondary_signers))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
-    for signer in transaction.secondary_signers:
+    for signer in data.secondary_signers:
 
-        result.add address.serialize(initAddress(signer))
+        toBcsHook(initAddress(signer), output)
+
+proc fromBcsHook*(data: var HexString, output: var MultiAgentRawTransaction) =
+
+    raise newException(NotImplemented, "MultiAgentRawTransaction bcs deserialization not implemented yet")
+    #{.fatal : "MultiAgentRawTransaction bcs deSerialization not implemented yet".}
 
 proc fromJsonHook*(v: var SubmittedTransaction, s: JsonNode) =
 

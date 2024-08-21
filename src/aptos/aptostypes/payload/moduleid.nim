@@ -8,8 +8,13 @@
 
 from std / strformat import fmt
 from std / strutils import split, removePrefix, align
+
+## third party imports
 import pkg / [bcs]
+
+## project imports
 import ../../movetypes/address
+#import ../../errors
 
 type
 
@@ -37,15 +42,13 @@ converter newModuleId*(data: string): ModuleId =
         name: parts[1]
     )
 
-proc serialize*(data: ModuleId): HexString =
+proc toBcsHook*(data: ModuleId, output: var HexString) =
 
-    result.add serialize(data.address)
-    result.add serializeStr(data.name)
+    toBcsHook(data.address, output)
+    output.add serializeStr(data.name)
 
-proc deSerialize*(data: var HexString): ModuleId =
+proc fromBcsHook*(data: var HexString, output: var ModuleId) =
 
-    return ModuleId(
-        address: address.deSerialize(data),
-        name: deSerializeStr(data)
-    )
+    fromBcsHook(data, output.address)
+    output.name = deSerializeStr(data)
 

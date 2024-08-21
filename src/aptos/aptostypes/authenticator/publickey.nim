@@ -42,15 +42,15 @@ proc getKeys*(keys: MultiPubKey): seq[SinglePubKey] = keys.keys
 proc getThreshold*(keys: MultiPubKey): uint = keys.threshold
 
 ## serialization procs
-proc serialize*(data: SinglePubKey): HexString =
+proc toBcsHook*(data: SinglePubKey, output: var HexString) =
 
     for val in serializeUleb128(uint32(byteLen(data))):
 
-        result.add bcs.serialize[uint8](val)
+        output.add serialize(val)
 
-    result.add data
+    output.add data
 
-proc serialize*(data: MultiPubKey): HexString =
+proc toBcsHook*(data: MultiPubKey, output: var HexString) =
 
     var bcsResult: HexString
     for pos in 0..<len(data.keys):
@@ -58,37 +58,27 @@ proc serialize*(data: MultiPubKey): HexString =
         bcsResult.add data.keys[pos]
 
     bcsResult.add toHex(data.threshold, 2)
-    result = bcs.serialize(bcsResult)
+    output.add serialize(bcsResult)
 
-template deSerializeSinglePubKey(data: var HexString,
-        key: var SinglePubKey): untyped =
+proc fromBcsHook*(data: var HexString,
+        output: var SinglePubKey) =
 
     let byteLen = deSerializeUleb128(data)
-    key.add data[0..((byteLen * 2) - 1)]
+    output = data[0..((byteLen * 2) - 1)]
     data = data[(byteLen * 2)..^1]
 
-template deSerializeMultiPubKey(data: var HexString,
-        keys: var MultiPubKey): untyped =
+proc fromBcsHook*(data: var HexString,
+        output: var MultiPubKey) =
 
-    keys.threshold = fromHex[int]($data[^2..^1])
+    output.threshold = fromHex[uint]($data[^2..^1])
     data = data[0..^3]
-    var hexData = bcs.deSerialize[HexString](data)
+    var hexData = deSerialize[HexString](data)
     while true:
 
-        keys.keys.add initSinglePubKey(hexData[0..PUBLIC_KEY_HEX_LEN - 1])
+        output.keys.add initSinglePubKey(hexData[0..PUBLIC_KEY_HEX_LEN - 1])
         if len(hexData) <= 0:
 
             break
 
         hexData = hexData[PUBLIC_KEY_HEX_LEN..^1]
-
-proc deSerialize*[T: SinglePubKey | MultiPubKey](data: var HexString): T =
-
-    when T is SinglePubKey:
-
-        deSerializeSinglePubKey(data, result)
-
-    elif T is MultiPubKey:
-
-        deSerializeMultiPubKey(data, result)
 
