@@ -13,11 +13,13 @@ import pkg / [bcs]
 
 type
 
-    Address* = array[64, char]
+    Address* = object 
+
+        val : array[64, char]
 
 func `$`*(x: Address): string =
 
-    for each in x:
+    for each in x.val:
 
         result.add each
 
@@ -52,9 +54,9 @@ proc initAddress*(data: string): Address =
     assert isValidAddress(data), "Invalid address " & data
 
     data = align(data, 64, '0')
-    for pos in 0..<len(result):
+    for pos in 0..<len(result.val):
 
-        result[pos] = data[pos]
+        result.val[pos] = data[pos]
 
 proc toBcsHook*(data: Address, output: var HexString) =
 
