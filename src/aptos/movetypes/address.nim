@@ -51,9 +51,9 @@ proc initAddress*(data: string): Address =
     var data = data
     removePrefix(data, "0x")
 
+    data = align(data, 64, '0')
     assert isValidAddress(data), "Invalid address " & data
 
-    data = align(data, 64, '0')
     for pos in 0..<len(result.val):
 
         result.val[pos] = data[pos]
