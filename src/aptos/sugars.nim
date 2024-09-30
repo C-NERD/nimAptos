@@ -89,7 +89,7 @@ proc validateGasFees*(client: AptosClient, max_gas_amount,
 
     return (max_gas_amount, gas_price)
 
-template transact*[T: TransactionPayload](account: RefAptosAccount |
+template protoTransact[T: TransactionPayload](account: RefAptosAccount |
         RefMultiSigAccount, client: AptosClient, payload: T, max_gas_amount_arg,
         gas_price_arg, txn_duration_arg: int64): untyped =
     ## required variables
@@ -110,7 +110,7 @@ template transact*[T: TransactionPayload](account: RefAptosAccount |
             fees.max_gas_amount, fees.gas_price, txn_duration_arg)
     transaction.payload = payload
 
-    var signedTransaction: SignedTransaction[T]
+    var signedTransaction {.inject.} : SignedTransaction[T]
     when account is RefAptosAccount:
 
         signedTransaction = singleSign[T](account, client, transaction, "")
@@ -118,16 +118,22 @@ template transact*[T: TransactionPayload](account: RefAptosAccount |
     elif account is RefMultiSigAccount:
 
         signedTransaction = multiSign[T](account, client, transaction, "")
+
+template transact*[T: TransactionPayload](account: RefAptosAccount |
+        RefMultiSigAccount, client: AptosClient, payload: T, max_gas_amount_arg,
+        gas_price_arg, txn_duration_arg: int64): untyped =
     
-    when not defined(simulateTxn):
+    protoTransact[T](account, client, payload, max_gas_amount_arg, gas_price_arg, txn_duration_arg)
+    await submitTransaction[T](client, signedTransaction)
 
-        await submitTransaction[T](client, signedTransaction)
+template simulateTransact*[T: TransactionPayload](account: RefAptosAccount |
+        RefMultiSigAccount, client: AptosClient, payload: T, max_gas_amount_arg,
+        gas_price_arg, txn_duration_arg: int64): untyped =
+    
+    protoTransact[T](account, client, payload, max_gas_amount_arg, gas_price_arg, txn_duration_arg)
+    await simulateTransaction(client, signedTransaction, true, true, true) ## when simulating, use estimated gas_prices
 
-    else:
-
-        await simulateTransaction[T](client, SignedTransaction, true, true, true) ## when simulating, use estimated gas_prices
-
-template multiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
+template protoMultiAgentTransact[T: TransactionPayload](account: RefAptosAccount |
         RefMultiSigAccount, single_sec_signers: seq[RefAptosAccount],
         multi_sec_signers: seq[RefMultiSigAccount], client: AptosClient,
         payload: T, max_gas_amount_arg, gas_price_arg,
@@ -168,7 +174,7 @@ template multiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
         encodedTransaction = "0x" & preHashMultiAgentTxn() & toLowerAscii(
                 $serialize(multiAgentTransaction))
 
-    var signedTransaction: SignedTransaction[T]
+    var signedTransaction {.inject.} : SignedTransaction[T]
     when account is RefAptosAccount:
 
         signedTransaction = singleSign[T](account, client, transaction, encodedTransaction)
@@ -200,11 +206,22 @@ template multiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
         signerAddresses,
         transaction
     )
-    when not defined(simulateTxn):
 
-        await submitTransaction[T](client, signedTransaction)
+template multiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
+        RefMultiSigAccount, single_sec_signers: seq[RefAptosAccount],
+        multi_sec_signers: seq[RefMultiSigAccount], client: AptosClient,
+        payload: T, max_gas_amount_arg, gas_price_arg,
+        txn_duration_arg: int64): untyped =
+    
+    protoMultiAgentTransact[T](account, single_sec_signers, multi_sec_signers, client, payload, max_gas_amount_arg, gas_price_arg, txn_duration_arg)
+    await submitTransaction[T](client, signedTransaction)
 
-    else:
-
-        await simulateTransaction[T](client, SignedTransaction, true, true, true) ## when simulating, use estimated gas_prices
+template simulateMultiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
+        RefMultiSigAccount, single_sec_signers: seq[RefAptosAccount],
+        multi_sec_signers: seq[RefMultiSigAccount], client: AptosClient,
+        payload: T, max_gas_amount_arg, gas_price_arg,
+        txn_duration_arg: int64): untyped =
+    
+    protoMultiAgentTransact[T](account, single_sec_signers, multi_sec_signers, client, payload, max_gas_amount_arg, gas_price_arg, txn_duration_arg)
+    await simulateTransaction(client, signedTransaction, true, true, true) ## when simulating, use estimated gas_prices
 

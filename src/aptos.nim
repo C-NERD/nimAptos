@@ -465,7 +465,7 @@ when defined(simulateTxn):
             type_arguments: @["0x1::aptos_coin::AptosCoin"],
             arguments: @[eArg recipient, eArg (uint64(amount.toOcta()))]
         )
-        result = transact[EntryFunctionPayload](account, client, payload,
+        result = simulateTransact[EntryFunctionPayload](account, client, payload,
                 max_gas_amount, gas_price, txn_duration)
         
     proc simulateCreateCollection*(account: RefAptosAccount | RefMultiSigAccount,
@@ -497,7 +497,7 @@ when defined(simulateTxn):
                     extendedEArg uri, eArg maximum,
                     extendedEArg collectionMutability]
         )
-        result = transact[EntryFunctionPayload](account, client, payload,
+        result = simulateTransact[EntryFunctionPayload](account, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateCreateToken*(account: RefAptosAccount | RefMultiSigAccount,
@@ -540,7 +540,7 @@ when defined(simulateTxn):
                 extendedEArg(empty), extendedEArg(empty), extendedEArg(empty)
             ]
         )
-        result = transact[EntryFunctionPayload](account, client, payload,
+        result = simulateTransact[EntryFunctionPayload](account, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateOfferToken*(account: RefAptosAccount | RefMultiSigAccount,
@@ -559,7 +559,7 @@ when defined(simulateTxn):
                 extendedEArg token, eArg property_version, eArg amount
             ]
         )
-        result = transact[EntryFunctionPayload](account, client, payload,
+        result = simulateTransact[EntryFunctionPayload](account, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateClaimToken*(account: RefAptosAccount | RefMultiSigAccount,
@@ -576,7 +576,7 @@ when defined(simulateTxn):
             arguments: @[eArg sender, eArg creator, extendedEArg collection,
                     extendedEArg token, eArg property_version]
         )
-        result = transact[EntryFunctionPayload](account, client, payload,
+        result = simulateTransact[EntryFunctionPayload](account, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateDirectTransferToken*(sender, recipient: RefAptosAccount |
@@ -603,7 +603,7 @@ when defined(simulateTxn):
             arguments: @[eArg creator, extendedEArg collection, extendedEArg token,
                     eArg property_version, eArg amount]
         )
-        result = multiAgentTransact[EntryFunctionPayload](sender, singleSigners,
+        result = simulateMultiAgentTransact[EntryFunctionPayload](sender, singleSigners,
                 multiSigners, client, payload, max_gas_amount, gas_price, txn_duration)
 
     proc simulateRotationProofChallenge*(accountForm1, accountForm2: RefAptosAccount |
@@ -709,7 +709,7 @@ when defined(simulateTxn):
                     eArg capRotateKey, eArg capUpdateTable
                 ]
             )
-        result = transact[EntryFunctionPayload](accountForm1, client, payload,
+        result = simulateTransact[EntryFunctionPayload](accountForm1, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateRegisterAccount*(account: RefAptosAccount | RefMultiSigAccount,
@@ -724,7 +724,7 @@ when defined(simulateTxn):
             type_arguments: @[],
             arguments: @[eArg new_account.address]
         )
-        result = transact[EntryFunctionPayload](account, client, payload,
+        result = simulateTransact[EntryFunctionPayload](account, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateRegisterMultiSigAcctFromExistingAcct*(account: RefAptosAccount |
@@ -812,7 +812,7 @@ when defined(simulateTxn):
                     extendedEArg(empty), extendedEArg(empty)
                 ]
             )
-        result = transact[EntryFunctionPayload](account, client, payload,
+        result = simulateTransact[EntryFunctionPayload](account, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     ## RefMultiSigAccount specific simulation sugars
@@ -832,7 +832,7 @@ when defined(simulateTxn):
             arguments: @[eArg recipient, eArg (uint64(amount.toOcta()))]
         )
         payload = createMultiSigTransaction(account, serialize(payload))
-        result = transact[EntryFunctionPayload](owner, client, payload,
+        result = simulateTransact[EntryFunctionPayload](owner, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateMultiSigTxnVote*(owner: RefAptosAccount, account: RefMultiSigAccount,
@@ -841,7 +841,7 @@ when defined(simulateTxn):
                 txn_duration: int64 = -1): Future[JsonNode] {.async.} =
 
         let payload = voteOnTransaction(account, sequenceNumber, vote)
-        result = transact[EntryFunctionPayload](owner, client, payload,
+        result = simulateTransact[EntryFunctionPayload](owner, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateRemoveRejectedTxns*(owner: RefAptosAccount, account: RefMultiSigAccount,
@@ -849,5 +849,5 @@ when defined(simulateTxn):
         max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[JsonNode] {.async.} =
 
         let payload = removeRejectedTransactions(account, finalSequenceNumber)
-        result = transact[EntryFunctionPayload](owner, client, payload,
+        result = simulateTransact[EntryFunctionPayload](owner, client, payload,
                 max_gas_amount, gas_price, txn_duration)
