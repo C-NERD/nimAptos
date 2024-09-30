@@ -32,6 +32,14 @@ type
 
     SimulationError* = object of CatchableError
 
+when defined(nodeSerialization):
+
+    {.hint : "on node bcs serialization enabled".}
+
+else:
+
+    {.hint : "local bcs serialization enabled".}
+
 var DEFAULT_MAX_GAS_AMOUNT* = 10000 ## change this to what you want the default max gas amount to be
 
 ## extension procs to node api

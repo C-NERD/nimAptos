@@ -34,6 +34,14 @@ export account, resourcetypes, moduleid, payload, transaction, aptosclient,
 export address, arguments, multisig_creation_message, rotation_challenge, typeinfo
 export authenticator, signature, publickey
 
+when not defined(simulateTxn):
+
+    {.hint : "transaction simulation not enabled, simulation procs not enabled".}
+
+else:
+
+    {.hint : "transaction simulation enabled, simulation procs enabled".}
+
 proc sendAptCoin*(account: RefAptosAccount | RefMultiSigAccount,
         client: AptosClient, recipient: Address,
     amount: float, max_gas_amount = -1; gas_price = -1;
