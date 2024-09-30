@@ -28,6 +28,10 @@ import ./accounts/account
 from ./aptostypes/transaction import RawTransaction
 from ./aptostypes/payload/payload import TransactionPayload
 
+type
+
+    SimulationError* = object of CatchableError
+
 var DEFAULT_MAX_GAS_AMOUNT* = 10000 ## change this to what you want the default max gas amount to be
 
 ## extension procs to node api
@@ -114,8 +118,14 @@ template transact*[T: TransactionPayload](account: RefAptosAccount |
     elif account is RefMultiSigAccount:
 
         signedTransaction = multiSign[T](account, client, transaction, "")
+    
+    when not defined(simulateTxn):
 
-    await submitTransaction[T](client, signedTransaction)
+        await submitTransaction[T](client, signedTransaction)
+
+    else:
+
+        await simulateTransaction[T](client, SignedTransaction, true, true, true) ## when simulating, use estimated gas_prices
 
 template multiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
         RefMultiSigAccount, single_sec_signers: seq[RefAptosAccount],
@@ -190,5 +200,11 @@ template multiAgentTransact*[T: TransactionPayload](account: RefAptosAccount |
         signerAddresses,
         transaction
     )
-    await submitTransaction[T](client, signedTransaction)
+    when not defined(simulateTxn):
+
+        await submitTransaction[T](client, signedTransaction)
+
+    else:
+
+        await simulateTransaction[T](client, SignedTransaction, true, true, true) ## when simulating, use estimated gas_prices
 

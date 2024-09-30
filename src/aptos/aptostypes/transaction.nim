@@ -8,6 +8,7 @@
 
 import std / [json, jsonutils]
 from std / strutils import removePrefix, parseBiggestUInt
+from std / typetraits import genericParams, get
 
 import pkg / [bcs]
 
@@ -114,10 +115,9 @@ proc fromBcsHook*(data: var HexString, output: var MultiAgentRawTransaction) =
     raise newException(NotImplemented, "MultiAgentRawTransaction bcs deserialization not implemented yet")
     #{.fatal : "MultiAgentRawTransaction bcs deSerialization not implemented yet".}
 
-proc fromJsonHook*(v: var SubmittedTransaction, s: JsonNode) =
+proc fromJsonHook*(v: var SignedTransaction, s: JsonNode) =
 
-    v = SubmittedTransaction(
-        hash: getStr(s["hash"]),
+    v = SignedTransaction(
         sender: getStr(s["sender"]),
         sequence_number: getStr(s["sequence_number"]),
         max_gas_amount: getStr(s["max_gas_amount"]),
@@ -137,6 +137,13 @@ proc fromJsonHook*(v: var SubmittedTransaction, s: JsonNode) =
     else:
 
         {.fatal: "unsupported payload type " & $(typeof(v.payload)).}
+
+proc fromJsonHook*(v: var SubmittedTransaction, s: JsonNode) =
+    
+    var txn : SignedTransaction[genericParams(typeof(v)).get(0)]
+    fromJsonHook(txn, s)
+    v = cast[typeof(v)](txn)
+    v.hash = getStr(s["hash"])
 
 proc toJsonHook*(v: RawTransaction): JsonNode =
 
