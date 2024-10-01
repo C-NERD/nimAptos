@@ -10,7 +10,7 @@ import std / [json]
 
 type
 
-    GenericParam = object
+    GenericParam* = object
 
         constraints*: seq[string]
 
