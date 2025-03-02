@@ -12,7 +12,7 @@ when defined(js):
 
 # stdlib imports
 import std / [sysrand]
-from std / strutils import toLowerAscii#, toUpperAscii, parseHexStr, toHex
+from std / strutils import toLowerAscii #, toUpperAscii, parseHexStr, toHex
 #from std / random import randomize, rand
 
 # third party imports

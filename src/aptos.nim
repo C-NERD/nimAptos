@@ -36,11 +36,11 @@ export authenticator, signature, publickey
 
 when not defined(simulateTxn):
 
-    {.hint : "transaction simulation not enabled, simulation procs not enabled".}
+    {.hint: "transaction simulation not enabled, simulation procs not enabled".}
 
 else:
 
-    {.hint : "transaction simulation enabled, simulation procs enabled".}
+    {.hint: "transaction simulation enabled, simulation procs enabled".}
 
 proc sendAptCoin*(account: RefAptosAccount | RefMultiSigAccount,
         client: AptosClient, recipient: Address,
@@ -473,13 +473,13 @@ when defined(simulateTxn):
             type_arguments: @["0x1::aptos_coin::AptosCoin"],
             arguments: @[eArg recipient, eArg (uint64(amount.toOcta()))]
         )
-        result = simulateTransact[EntryFunctionPayload](account, client, payload,
-                max_gas_amount, gas_price, txn_duration)
-        
-    proc simulateCreateCollection*(account: RefAptosAccount | RefMultiSigAccount,
-            client: AptosClient, name,
-        description, uri: string, maximum: uint64, collection_mutability: array[3,
-                bool], max_gas_amount = -1; gas_price = -1;
+        result = simulateTransact[EntryFunctionPayload](account, client,
+                payload, max_gas_amount, gas_price, txn_duration)
+
+    proc simulateCreateCollection*(account: RefAptosAccount |
+            RefMultiSigAccount, client: AptosClient, name,
+        description, uri: string, maximum: uint64, collection_mutability: array[
+                3, bool], max_gas_amount = -1; gas_price = -1;
                 txn_duration: int64 = -1): Future[JsonNode] {.async.} =
         ## collection_mutability specifies which part of the collection is mutable;
         ## pos 1 : collection description
@@ -505,8 +505,8 @@ when defined(simulateTxn):
                     extendedEArg uri, eArg maximum,
                     extendedEArg collectionMutability]
         )
-        result = simulateTransact[EntryFunctionPayload](account, client, payload,
-                max_gas_amount, gas_price, txn_duration)
+        result = simulateTransact[EntryFunctionPayload](account, client,
+                payload, max_gas_amount, gas_price, txn_duration)
 
     proc simulateCreateToken*(account: RefAptosAccount | RefMultiSigAccount,
             client: AptosClient, collection, name,
@@ -548,8 +548,8 @@ when defined(simulateTxn):
                 extendedEArg(empty), extendedEArg(empty), extendedEArg(empty)
             ]
         )
-        result = simulateTransact[EntryFunctionPayload](account, client, payload,
-                max_gas_amount, gas_price, txn_duration)
+        result = simulateTransact[EntryFunctionPayload](account, client,
+                payload, max_gas_amount, gas_price, txn_duration)
 
     proc simulateOfferToken*(account: RefAptosAccount | RefMultiSigAccount,
             client: AptosClient, recipient, creator: Address,
@@ -567,13 +567,13 @@ when defined(simulateTxn):
                 extendedEArg token, eArg property_version, eArg amount
             ]
         )
-        result = simulateTransact[EntryFunctionPayload](account, client, payload,
-                max_gas_amount, gas_price, txn_duration)
+        result = simulateTransact[EntryFunctionPayload](account, client,
+                payload, max_gas_amount, gas_price, txn_duration)
 
     proc simulateClaimToken*(account: RefAptosAccount | RefMultiSigAccount,
             client: AptosClient, sender, creator: Address,
-        collection, token: string, property_version: uint64, max_gas_amount = -1;
-                gas_price = -1;
+        collection, token: string, property_version: uint64,
+                max_gas_amount = -1;gas_price = -1;
         txn_duration: int64 = -1): Future[JsonNode] {.async.} =
         ## returns transaction
 
@@ -584,8 +584,8 @@ when defined(simulateTxn):
             arguments: @[eArg sender, eArg creator, extendedEArg collection,
                     extendedEArg token, eArg property_version]
         )
-        result = simulateTransact[EntryFunctionPayload](account, client, payload,
-                max_gas_amount, gas_price, txn_duration)
+        result = simulateTransact[EntryFunctionPayload](account, client,
+                payload, max_gas_amount, gas_price, txn_duration)
 
     proc simulateDirectTransferToken*(sender, recipient: RefAptosAccount |
             RefMultiSigAccount, client: AptosClient,
@@ -608,15 +608,17 @@ when defined(simulateTxn):
             moduleid: newModuleId("0x3::token"),
             function: "direct_transfer_script",
             type_arguments: @[],
-            arguments: @[eArg creator, extendedEArg collection, extendedEArg token,
-                    eArg property_version, eArg amount]
+            arguments: @[eArg creator, extendedEArg collection,
+                    extendedEArg token, eArg property_version, eArg amount]
         )
-        result = simulateMultiAgentTransact[EntryFunctionPayload](sender, singleSigners,
-                multiSigners, client, payload, max_gas_amount, gas_price, txn_duration)
+        result = simulateMultiAgentTransact[EntryFunctionPayload](sender,
+                singleSigners, multiSigners, client, payload, max_gas_amount,
+                        gas_price, txn_duration)
 
-    proc simulateRotationProofChallenge*(accountForm1, accountForm2: RefAptosAccount |
-            RefMultiSigAccount, client: AptosClient,
-        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[JsonNode] {.async.} =
+    proc simulateRotationProofChallenge*(accountForm1,
+            accountForm2: RefAptosAccount |RefMultiSigAccount, client: AptosClient,
+        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+                JsonNode] {.async.} =
         ## rotation proof challenge
 
         await refresh(accountForm1, client)
@@ -677,7 +679,8 @@ when defined(simulateTxn):
                 singleSignatures: seq[SingleEd25519Signature]
                 positions: seq[int]
             let signature = accountForm1.signMsg($serChallengeTypeInfo)
-            assert accountForm1.verifySignature(signature, $serChallengeTypeInfo), "unable to verify accountForm1 multi signature"
+            assert accountForm1.verifySignature(signature,
+                    $serChallengeTypeInfo), "unable to verify accountForm1 multi signature"
             for sig in signature:
 
                 singleSignatures.add initSingleSignature(sig.signature)
@@ -698,7 +701,8 @@ when defined(simulateTxn):
                 singleSignatures: seq[SingleEd25519Signature]
                 positions: seq[int]
             let signature2 = accountForm2.signMsg($serChallengeTypeInfo)
-            assert accountForm2.verifySignature(signature2, $serChallengeTypeInfo), "unable to verify accountForm2 multi signature"
+            assert accountForm2.verifySignature(signature2,
+                    $serChallengeTypeInfo), "unable to verify accountForm2 multi signature"
             for sig in signature2:
 
                 singleSignatures.add initSingleSignature(sig.signature)
@@ -712,17 +716,20 @@ when defined(simulateTxn):
                 function: "rotate_authentication_key",
                 type_arguments: @[],
                 arguments: @[
-                    eArg fromScheme, eArg fromString(accountForm1.getPublicKey()),
+                    eArg fromScheme, eArg fromString(accountForm1.getPublicKey(
+                            )),
                     eArg toScheme, eArg fromString(accountForm2.getPublicKey()),
                     eArg capRotateKey, eArg capUpdateTable
                 ]
             )
-        result = simulateTransact[EntryFunctionPayload](accountForm1, client, payload,
-                max_gas_amount, gas_price, txn_duration)
+        result = simulateTransact[EntryFunctionPayload](accountForm1, client,
+                payload, max_gas_amount, gas_price, txn_duration)
 
     proc simulateRegisterAccount*(account: RefAptosAccount | RefMultiSigAccount,
-            client: AptosClient, new_account: RefAptosAccount | RefMultiSigAccount,
-        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[JsonNode] {.async.} =
+            client: AptosClient, new_account: RefAptosAccount |
+                    RefMultiSigAccount,
+        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+                JsonNode] {.async.} =
         ## register address for new wallet
         ## returns transaction
 
@@ -732,14 +739,16 @@ when defined(simulateTxn):
             type_arguments: @[],
             arguments: @[eArg new_account.address]
         )
-        result = simulateTransact[EntryFunctionPayload](account, client, payload,
-                max_gas_amount, gas_price, txn_duration)
+        result = simulateTransact[EntryFunctionPayload](account, client,
+                payload, max_gas_amount, gas_price, txn_duration)
 
     proc simulateRegisterMultiSigAcctFromExistingAcct*(account: RefAptosAccount |
-            RefMultiSigAccount, client: AptosClient, new_account: RefAptosAccount |
+            RefMultiSigAccount, client: AptosClient,
+                    new_account: RefAptosAccount |
             RefMultiSigAccount,
         owners: seq[RefAptosAccount], num_signatures_required: uint64,
-        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[JsonNode] {.async.} =
+        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+                JsonNode] {.async.} =
         ## did not call refresh here cause it is assumed that new_account maybe an unregistered RefMultiSigAccount
         ## you may need to call refresh manually on this
 
@@ -820,12 +829,12 @@ when defined(simulateTxn):
                     extendedEArg(empty), extendedEArg(empty)
                 ]
             )
-        result = simulateTransact[EntryFunctionPayload](account, client, payload,
-                max_gas_amount, gas_price, txn_duration)
+        result = simulateTransact[EntryFunctionPayload](account, client,
+                payload, max_gas_amount, gas_price, txn_duration)
 
     ## RefMultiSigAccount specific simulation sugars
-    proc simulateMultiSigSendAptCoin*(owner: RefAptosAccount, account: RefMultiSigAccount,
-            client: AptosClient, recipient: Address,
+    proc simulateMultiSigSendAptCoin*(owner: RefAptosAccount,
+            account: RefMultiSigAccount, client: AptosClient, recipient: Address,
         amount: float, max_gas_amount = -1; gas_price = -1;
                 txn_duration: int64 = -1): Future[JsonNode] {.async.} =
         ## param amount: amount to send in aptos
@@ -843,8 +852,8 @@ when defined(simulateTxn):
         result = simulateTransact[EntryFunctionPayload](owner, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
-    proc simulateMultiSigTxnVote*(owner: RefAptosAccount, account: RefMultiSigAccount,
-            client: AptosClient, sequenceNumber: uint64,
+    proc simulateMultiSigTxnVote*(owner: RefAptosAccount,
+            account: RefMultiSigAccount, client: AptosClient, sequenceNumber: uint64,
         vote: Vote, max_gas_amount = -1; gas_price = -1;
                 txn_duration: int64 = -1): Future[JsonNode] {.async.} =
 
@@ -852,9 +861,10 @@ when defined(simulateTxn):
         result = simulateTransact[EntryFunctionPayload](owner, client, payload,
                 max_gas_amount, gas_price, txn_duration)
 
-    proc simulateRemoveRejectedTxns*(owner: RefAptosAccount, account: RefMultiSigAccount,
-            client: AptosClient, finalSequenceNumber: uint64,
-        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[JsonNode] {.async.} =
+    proc simulateRemoveRejectedTxns*(owner: RefAptosAccount,
+            account: RefMultiSigAccount, client: AptosClient, finalSequenceNumber: uint64,
+        max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
+                JsonNode] {.async.} =
 
         let payload = removeRejectedTransactions(account, finalSequenceNumber)
         result = simulateTransact[EntryFunctionPayload](owner, client, payload,

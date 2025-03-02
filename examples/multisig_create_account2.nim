@@ -8,9 +8,9 @@ import aptos
 let logger = newConsoleLogger(fmtStr = "[$levelname] -> ")
 addHandler(logger)
 
-let 
+let
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
-    faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com") 
+    faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com")
     account1 = newAccount(
         getEnv("APTOS_ADDRESS1"),
         getEnv("APTOS_SEED1")
@@ -27,7 +27,8 @@ let
         getEnv("APTOS_ADDRESS4"),
         getEnv("APTOS_SEED4")
     )
-    multiSigAcct = waitFor createMultiSigAccount(client, @[account1, account2, account3, account4], 2)
+    multiSigAcct = waitFor createMultiSigAccount(client, @[account1, account2,
+            account3, account4], 2)
 
 info "funding account1 ..."
 let faucetTxn1 = waitFor faucetClient.faucetFund($account1.address, 1.toOcta())
@@ -39,8 +40,8 @@ notice fmt"account registered at {txn1.hash}"
 
 info "registering multiSig account on chain ..."
 let txn2 = waitFor account1.registerMultiSigAcctFromExistingAcct(
-    client, 
-    multiSigAcct, 
+    client,
+    multiSigAcct,
     @[account1, account2, account3, account4],
     2
 )

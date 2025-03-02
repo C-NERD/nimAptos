@@ -9,9 +9,9 @@ import aptos
 let logger = newConsoleLogger(fmtStr = "[$levelname] -> ")
 addHandler(logger)
 
-let 
+let
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
-    faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com") 
+    faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com")
     account1 = newAccount(
         getEnv("APTOS_ADDRESS1"),
         getEnv("APTOS_SEED1")
@@ -28,7 +28,8 @@ let
         getEnv("APTOS_ADDRESS4"),
         getEnv("APTOS_SEED4")
     )
-    multiSigAcct = newMultiSigAccount(@[account1, account2, account3, account4], getEnv("APTOS_MULTISIG"))
+    multiSigAcct = newMultiSigAccount(@[account1, account2, account3, account4],
+            getEnv("APTOS_MULTISIG"))
 
 info "funding multiSig account ..."
 let faucetTxn = waitFor faucetClient.faucetFund($multiSigAcct.address, 1.toOcta())
@@ -36,9 +37,9 @@ notice fmt"multiSigAcct funded at {faucetTxn[0]}"
 
 let balance = waitFor multiSigAcct.accountBalanceApt(client)
 if balance >= 0.2:
-    
+
     info fmt"sending funds from {multiSigAcct.address} to {account1.address}..."
-    let 
+    let
         sendTxn = waitFor sendAptCoin(multiSigAcct, client, account1.address, 0.2)
         sendTxn2 = waitFor client.getTransactionByHash(sendTxn.hash)
 

@@ -13,9 +13,9 @@ import pkg / [bcs]
 
 type
 
-    Address* = object 
+    Address* = object
 
-        val : array[64, char]
+        val: array[64, char]
 
 func `$`*(x: Address): string =
 
