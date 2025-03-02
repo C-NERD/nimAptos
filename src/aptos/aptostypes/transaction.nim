@@ -113,7 +113,6 @@ proc toBcsHook*[T: TransactionPayload](data: MultiAgentRawTransaction[
 proc fromBcsHook*(data: var HexString, output: var MultiAgentRawTransaction) =
 
     raise newException(NotImplemented, "MultiAgentRawTransaction bcs deserialization not implemented yet")
-    #{.fatal : "MultiAgentRawTransaction bcs deSerialization not implemented yet".}
 
 proc fromJsonHook*(v: var SignedTransaction, s: JsonNode) =
 
