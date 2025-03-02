@@ -286,6 +286,8 @@ proc toJsonHook*(v: TypeTags): JsonNode =
 
 proc initTypeTag*(data: string): TypeTags = jsonTo(%data, TypeTags)
 
+proc `$`*(data : TypeTags) : string = $toJson(data)
+
 when isMainModule:
 
     let struct = jsonTo(%"0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>", TypeTags)

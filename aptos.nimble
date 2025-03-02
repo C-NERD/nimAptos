@@ -9,4 +9,4 @@ srcDir = "src"
 # Dependencies
 
 requires "nim >= 2.0.0", "libsodium == 0.7.1", "sha3 == 0.7.0",
-    "nimcrypto == 0.6.0", "bcs == 0.3.5"
+    "nimcrypto == 0.6.0", "bcs == 0.3.6"
