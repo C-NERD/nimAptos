@@ -8,9 +8,9 @@ import aptos
 let logger = newConsoleLogger(fmtStr = "[$levelname] -> ")
 addHandler(logger)
 
-let 
+let
     client = newAptosClient("https://fullnode.devnet.aptoslabs.com/v1")
-    faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com") 
+    faucetClient = newFaucetClient("https://faucet.devnet.aptoslabs.com")
     account1 = newAccount(
         getEnv("APTOS_ADDRESS1"),
         getEnv("APTOS_SEED1")
@@ -48,8 +48,8 @@ info fmt"account {singleSigAcct.address} registered successfully"
 
 info "registering multiSig account on chain ..."
 let txn2 = waitFor account1.registerMultiSigAcctFromExistingAcct(
-    client, 
-    singleSigAcct, 
+    client,
+    singleSigAcct,
     @[account1, account2, account3, account4],
     2
 )
@@ -65,11 +65,12 @@ assert getBool(registerTxn["success"]), getStr(registerTxn["vm_status"])
 info fmt"multiSig account {singleSigAcct.address} registered successfully"
 
 info "funding multi sig account ..."
-let faucetTxn2 = waitFor faucetClient.faucetFund($singleSigAcct.address, 1.toOcta())
+let faucetTxn2 = waitFor faucetClient.faucetFund($singleSigAcct.address,
+        1.toOcta())
 notice fmt"multi sig account funded at {faucetTxn2[0]}"
 
 info "performing rotation proof challenge on new multi sig account ..."
-let 
+let
     multiSigAcct = newMultiSigAccount(
         @[account1, account2, account3, account4],
         $singleSigAcct.address

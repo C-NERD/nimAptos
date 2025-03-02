@@ -139,8 +139,8 @@ proc fromJsonHook*(v: var SignedTransaction, s: JsonNode) =
         {.fatal: "unsupported payload type " & $(typeof(v.payload)).}
 
 proc fromJsonHook*(v: var SubmittedTransaction, s: JsonNode) =
-    
-    var txn : SignedTransaction[genericParams(typeof(v)).get(0)]
+
+    var txn: SignedTransaction[genericParams(typeof(v)).get(0)]
     fromJsonHook(txn, s)
     v = cast[typeof(v)](txn)
     v.hash = getStr(s["hash"])

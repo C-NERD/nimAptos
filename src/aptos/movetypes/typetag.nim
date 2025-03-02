@@ -286,7 +286,7 @@ proc toJsonHook*(v: TypeTags): JsonNode =
 
 proc initTypeTag*(data: string): TypeTags = jsonTo(%data, TypeTags)
 
-proc `$`*(data : TypeTags) : string = $toJson(data)
+proc `$`*(data: TypeTags): string = $toJson(data)
 
 when isMainModule:
 
