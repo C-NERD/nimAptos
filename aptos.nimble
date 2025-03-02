@@ -1,6 +1,6 @@
 # tracepointsPackage
 
-version = "0.3.0"
+version = "0.3.1"
 author = "C-NERD"
 description = "aptos library for nim lang"
 license = "MIT"

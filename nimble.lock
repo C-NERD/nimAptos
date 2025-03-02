@@ -11,18 +11,6 @@
         "sha1": "00f7414c50c204022ee9e9068699f38bd41e22fe"
       }
     },
-    "bcs": {
-      "version": "0.3.5",
-      "vcsRevision": "e26ab2ae35e4f8803d4b91efaf2b11bfe961bf1e",
-      "url": "",
-      "downloadMethod": "git",
-      "dependencies": [
-        "integers"
-      ],
-      "checksums": {
-        "sha1": "617d94a55a712d88b29e989af24afd51467bcfd1"
-      }
-    },
     "sha3": {
       "version": "0.7",
       "vcsRevision": "7e1a5194668371c8fd4024054ac4d8c7431eddba",
@@ -51,6 +39,18 @@
       "dependencies": [],
       "checksums": {
         "sha1": "b11cd69323f1c8929c53ff97793940f0c72f78d5"
+      }
+    },
+    "bcs": {
+      "version": "0.3.6",
+      "vcsRevision": "b8e717f84df55111c2a6fcb57e646279a34b5f70",
+      "url": "https://github.com/C-NERD/nimBcs",
+      "downloadMethod": "git",
+      "dependencies": [
+        "integers"
+      ],
+      "checksums": {
+        "sha1": "242399b54713d2c8823b36f65a72bbf0cd88bfda"
       }
     }
   },
