@@ -573,7 +573,7 @@ when defined(simulateTxn):
     proc simulateClaimToken*(account: RefAptosAccount | RefMultiSigAccount,
             client: AptosClient, sender, creator: Address,
         collection, token: string, property_version: uint64,
-                max_gas_amount = -1; gas_price = -1;
+                max_gas_amount = -1;gas_price = -1;
         txn_duration: int64 = -1): Future[JsonNode] {.async.} =
         ## returns transaction
 
@@ -616,8 +616,7 @@ when defined(simulateTxn):
                         gas_price, txn_duration)
 
     proc simulateRotationProofChallenge*(accountForm1,
-            accountForm2: RefAptosAccount | RefMultiSigAccount,
-                    client: AptosClient,
+            accountForm2: RefAptosAccount | RefMultiSigAccount, client: AptosClient,
         max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
                 JsonNode] {.async.} =
         ## rotation proof challenge
@@ -718,7 +717,7 @@ when defined(simulateTxn):
                 type_arguments: @[],
                 arguments: @[
                     eArg fromScheme, eArg fromString(accountForm1.getPublicKey(
-                )),
+                            )),
                     eArg toScheme, eArg fromString(accountForm2.getPublicKey()),
                     eArg capRotateKey, eArg capUpdateTable
                 ]
@@ -835,8 +834,7 @@ when defined(simulateTxn):
 
     ## RefMultiSigAccount specific simulation sugars
     proc simulateMultiSigSendAptCoin*(owner: RefAptosAccount,
-            account: RefMultiSigAccount, client: AptosClient,
-                    recipient: Address,
+            account: RefMultiSigAccount, client: AptosClient, recipient: Address,
         amount: float, max_gas_amount = -1; gas_price = -1;
                 txn_duration: int64 = -1): Future[JsonNode] {.async.} =
         ## param amount: amount to send in aptos
@@ -855,8 +853,7 @@ when defined(simulateTxn):
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateMultiSigTxnVote*(owner: RefAptosAccount,
-            account: RefMultiSigAccount, client: AptosClient,
-                    sequenceNumber: uint64,
+            account: RefMultiSigAccount, client: AptosClient, sequenceNumber: uint64,
         vote: Vote, max_gas_amount = -1; gas_price = -1;
                 txn_duration: int64 = -1): Future[JsonNode] {.async.} =
 
@@ -865,8 +862,7 @@ when defined(simulateTxn):
                 max_gas_amount, gas_price, txn_duration)
 
     proc simulateRemoveRejectedTxns*(owner: RefAptosAccount,
-            account: RefMultiSigAccount, client: AptosClient,
-                    finalSequenceNumber: uint64,
+            account: RefMultiSigAccount, client: AptosClient, finalSequenceNumber: uint64,
         max_gas_amount = -1; gas_price = -1; txn_duration: int64 = -1): Future[
                 JsonNode] {.async.} =
 
